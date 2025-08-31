@@ -4,7 +4,7 @@ import sys
 
 
 def main():
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dissertation_tracker.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'dissertation_lifecycle.settings')
     from django.core.management import execute_from_command_line
     execute_from_command_line(sys.argv)
 
