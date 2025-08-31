@@ -1,5 +1,5 @@
-app = "dissertation-tracker-placeholder"
-primary_region = "iad"
+app = "dissertation-lifecycle"
+primary_region = "den"
 
 [build]
   dockerfile = "Dockerfile"

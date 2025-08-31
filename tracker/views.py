@@ -104,18 +104,7 @@ def dashboard(request):
         except Exception:
             t.effort_pct = 0
             t.combined_pct = 0
-    return render(request, 'tracker/dashboard.html', {
-        'project': project,
-        'tasks': tasks,
-        'completion': completion,
-        'milestone_progress': milestone_progress,
-        'radar_points': radar_points,
-        'radar_show_grid': radar_show_grid,
-        'radar_show_labels': radar_show_labels,
-        'radar_speed': radar_speed,
-        'w_status': w_status,
-        'w_effort': w_effort,
-        badges = compute_badges(project)
+    badges = compute_badges(project)
     return render(request, 'tracker/dashboard.html', {
         'project': project,
         'tasks': tasks,
