@@ -16,7 +16,7 @@ from .forms import (
     DocumentNotesForm,
     ProjectNoteForm,
 )
-from .models import Profile, Project, Task, Document, ProjectNote
+from .models import Profile, Project, Task, Document, ProjectNote, CoreSectionProgress, CORE_SECTION_CHOICES
 from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent
 
 
@@ -51,6 +51,22 @@ def dashboard(request):
         return redirect('project_new')
     tasks = list(project.tasks.select_related('milestone').all())
     completion = project.completion_percent()
+    # Read weights for combining status+effort and persist in session
+    if 'update_weights' in request.GET:
+        try:
+            w_status = max(0, int(request.GET.get('w_status', '70')))
+        except Exception:
+            w_status = 70
+        try:
+            w_effort = max(0, int(request.GET.get('w_effort', '30')))
+        except Exception:
+            w_effort = 30
+        request.session['w_status'] = w_status
+        request.session['w_effort'] = w_effort
+    else:
+        w_status = request.session.get('w_status', 70)
+        w_effort = request.session.get('w_effort', 30)
+    weights = {'status': w_status, 'effort': w_effort}
     # Per-milestone progress
     milestones = project.milestones.prefetch_related('tasks').all()
     milestone_progress = []
@@ -59,7 +75,7 @@ def dashboard(request):
         total = len(ts)
         done = sum(1 for t in ts if t.status == 'done')
         if total:
-            avg = int(round(sum(task_combined_percent(t) for t in ts) / total))
+            avg = int(round(sum(task_combined_percent(t, weights) for t in ts) / total))
         else:
             avg = 0
         milestone_progress.append({'m': m, 'percent': avg, 'total': total, 'done': done})
@@ -82,8 +98,11 @@ def dashboard(request):
     for t in tasks:
         try:
             t.effort_pct = task_effort(t)[2]
+            t.combined_pct = task_combined_percent(t, weights)
         except Exception:
             t.effort_pct = 0
+            t.combined_pct = 0
+    core_sections = list(project.core_sections.all())
     return render(request, 'tracker/dashboard.html', {
         'project': project,
         'tasks': tasks,
@@ -93,6 +112,9 @@ def dashboard(request):
         'radar_show_grid': radar_show_grid,
         'radar_show_labels': radar_show_labels,
         'radar_speed': radar_speed,
+        'w_status': w_status,
+        'w_effort': w_effort,
+        'core_sections': core_sections,
         # tasks now carry task.effort_pct
     })
 
@@ -106,7 +128,14 @@ def project_new(request):
             project.student = request.user
             project.save()
             if form.cleaned_data.get('apply_templates'):
-                apply_templates_to_project(project, include_phd=form.cleaned_data.get('include_phd'))
+                apply_templates_to_project(
+                    project,
+                    include_phd=form.cleaned_data.get('include_phd'),
+                    include_detailed=form.cleaned_data.get('include_detailed'),
+                )
+            # Initialize core sections
+            for key, _label in CORE_SECTION_CHOICES:
+                CoreSectionProgress.objects.get_or_create(project=project, key=key)
             messages.success(request, 'Project created.')
             return redirect('dashboard')
     else:
@@ -346,3 +375,36 @@ def project_note_delete(request, pk: int):
         messages.success(request, 'Note deleted')
         return redirect('project_notes')
     return render(request, 'tracker/note_delete_confirm.html', {'note': note})
+
+
+@login_required
+def core_sections_view(request):
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return redirect('project_new')
+    if request.method == 'POST':
+        # Update each core section from the form
+        for key, _label in CORE_SECTION_CHOICES:
+            try:
+                pct = int(request.POST.get(f'pct_{key}', '0'))
+            except Exception:
+                pct = 0
+            pct = max(0, min(100, pct))
+            try:
+                tgt = int(request.POST.get(f'target_{key}', '0'))
+            except Exception:
+                tgt = 0
+            obj, _ = CoreSectionProgress.objects.get_or_create(project=project, key=key)
+            obj.percent = pct
+            obj.word_target = max(0, tgt)
+            obj.save()
+        messages.success(request, 'Updated core sections progress')
+        return redirect('core_sections')
+    # Ensure all rows exist
+    sections = list(project.core_sections.all())
+    existing = {c.key for c in sections}
+    for key, _ in CORE_SECTION_CHOICES:
+        if key not in existing:
+            sections.append(CoreSectionProgress.objects.create(project=project, key=key))
+    sections.sort(key=lambda c: c.key)
+    return render(request, 'tracker/sections.html', {'project': project, 'sections': sections})

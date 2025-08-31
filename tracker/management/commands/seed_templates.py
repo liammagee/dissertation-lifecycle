@@ -7,6 +7,61 @@ from tracker.models import MilestoneTemplate, TaskTemplate
 
 MILESTONES = [
     {
+        "key": "core-introduction",
+        "name": "Introduction",
+        "is_phd_only": False,
+        "tasks": [
+            "Outline introduction",
+            "Draft introduction",
+            "Revise introduction",
+            "Finalize introduction",
+        ],
+    },
+    {
+        "key": "core-literature-review",
+        "name": "Literature Review",
+        "is_phd_only": False,
+        "tasks": [
+            "Outline literature review",
+            "Draft literature review",
+            "Revise literature review",
+            "Finalize literature review",
+        ],
+    },
+    {
+        "key": "core-methodology",
+        "name": "Methodology",
+        "is_phd_only": False,
+        "tasks": [
+            "Outline methodology",
+            "Draft methodology",
+            "Revise methodology",
+            "Finalize methodology",
+        ],
+    },
+    {
+        "key": "core-findings",
+        "name": "Findings",
+        "is_phd_only": False,
+        "tasks": [
+            "Outline findings",
+            "Draft findings",
+            "Revise findings",
+            "Finalize findings",
+        ],
+    },
+    {
+        "key": "core-conclusion",
+        "name": "Conclusion",
+        "is_phd_only": False,
+        "tasks": [
+            "Outline conclusion",
+            "Draft conclusion",
+            "Revise conclusion",
+            "Finalize conclusion",
+        ],
+    },
+    {
         "key": "getting-started",
         "name": "Getting Started – Topic Approval",
         "is_phd_only": False,
@@ -236,4 +291,3 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f"Seeded milestones (new: {created_ms}) and tasks (total: {created_tasks})."
         ))
-

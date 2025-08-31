@@ -16,6 +16,13 @@
     <button class="btn btn-outline-primary" type="submit">Update weighting</button>
   </div>
 </form>
+<div class="text-muted small mb-3">
+  Effort badge colors: <span class="badge text-bg-danger">&lt;30%</span>,
+  <span class="badge text-bg-warning">30–74%</span>,
+  <span class="badge text-bg-success">≥75%</span>.
+  Milestone % uses combined(Status {{ w_status|default:70 }}%, Effort {{ w_effort|default:30 }}%).
+  Adjust weights above to favor status completion vs writing effort.
+</div>
 <div class="mb-3 d-flex align-items-center gap-3">
   <div>{% donut completion 120 14 %}</div>
   <div>
@@ -81,6 +88,7 @@
           {% else %}
             <span class="badge text-bg-danger">Effort {{ task.effort_pct }}%</span>
           {% endif %}
+          <span class="badge text-bg-light ms-1">Combined {{ task.combined_pct }}%</span>
           {% if task.template %}
             {% if task.template.guidance_tips or task.template.guidance_url %}
               <button class="btn btn-sm btn-outline-secondary ms-2"

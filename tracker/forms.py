@@ -17,6 +17,12 @@ class ProjectCreateForm(forms.ModelForm):
         help_text="Include ERP PhD track tasks",
         label="Include ERP PhD tasks",
     )
+    include_detailed = forms.BooleanField(
+        required=False,
+        initial=False,
+        help_text="Include detailed scaffolding (chapter-specific checklists)",
+        label="Include detailed scaffolding",
+    )
     class Meta:
         model = Project
         fields = ['title', 'field_of_study', 'expected_defense_date']

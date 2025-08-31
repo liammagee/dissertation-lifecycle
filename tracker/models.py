@@ -172,3 +172,27 @@ class Notification(models.Model):
     payload = models.JSONField(default=dict, blank=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
+
+
+# Core section progress (Introduction, Literature Review, Methodology, Findings, Conclusion)
+CORE_SECTION_CHOICES = (
+    ("introduction", "Introduction"),
+    ("literature_review", "Literature Review"),
+    ("methodology", "Methodology"),
+    ("findings", "Findings"),
+    ("conclusion", "Conclusion"),
+)
+
+
+class CoreSectionProgress(models.Model):
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="core_sections")
+    key = models.CharField(max_length=32, choices=CORE_SECTION_CHOICES)
+    percent = models.PositiveIntegerField(default=0)  # 0-100 manual progress
+    word_target = models.PositiveIntegerField(default=0)  # optional words goal for the section
+
+    class Meta:
+        unique_together = [("project", "key")]
+        ordering = ["key"]
+
+    def __str__(self) -> str:
+        return f"{self.get_key_display()} - {self.percent}%"

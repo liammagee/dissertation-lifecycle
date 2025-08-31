@@ -1,17 +1,22 @@
 from __future__ import annotations
 
 from typing import Iterable, Tuple
+from django.db import models as dj_models
 
 from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task
 
 
-def apply_templates_to_project(project: Project, include_phd: bool = False) -> None:
+def apply_templates_to_project(project: Project, include_phd: bool = False, include_detailed: bool = False) -> None:
     mts: Iterable[MilestoneTemplate] = (
         MilestoneTemplate.objects.all().order_by('order', 'id')
     )
     order = 1
     for mt in mts:
         if mt.is_phd_only and not include_phd:
+            continue
+        # Apply core milestones always; apply detailed ones only if requested
+        is_core = str(mt.key).startswith('core-')
+        if not is_core and not include_detailed and not mt.is_phd_only:
             continue
         milestone = Milestone.objects.create(
             project=project,
@@ -35,6 +40,10 @@ def apply_templates_to_project(project: Project, include_phd: bool = False) -> N
                     target = 4500
                 if 'goal' in title_lower and '4000' in title_lower:
                     target = 4500
+            # Core literature review default target for Draft
+            if mt.key == 'core-literature-review':
+                if 'draft literature review' in title_lower:
+                    target = 5500
 
             Task.objects.create(
                 project=project,
@@ -94,7 +103,7 @@ def task_effort(task: Task) -> Tuple[int, int, int]:
     target = int(task.word_target or 0)
     words = 0
     if target > 0:
-        words = int(task.word_logs.aggregate(total=models.Sum('words'))['total'] or 0)
+        words = int(task.word_logs.aggregate(total=dj_models.Sum('words'))['total'] or 0)
     percent = 0 if target <= 0 else min(100, int(round(100 * words / max(1, target))))
     return words, target, percent
 
