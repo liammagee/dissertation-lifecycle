@@ -18,7 +18,7 @@ COPY . /app
 RUN python manage.py collectstatic --noinput || true
 
 EXPOSE 8000
-# CMD ["gunicorn", "dissertation_tracker.wsgi:application", "--bind", "0.0.0.0:8000"]
-# CMD ["bash","-lc","gunicorn dissertation_tracker.wsgi:application --workers 1 --threads 2 --timeout 60 --bind 0.0.0.0:${PORT}"]
+# CMD ["gunicorn", "dissertation_lifecycle.wsgi:application", "--bind", "0.0.0.0:8000"]
+# CMD ["bash","-lc","gunicorn dissertation_lifecycle.wsgi:application --workers 1 --threads 2 --timeout 60 --bind 0.0.0.0:${PORT}"]
 # Dockerfile (replace <<<ACTUAL_PACKAGE>>>)
 CMD ["bash","-lc","gunicorn dissertation_lifecycle.wsgi:application --workers 1 --threads 2 --timeout 60 --access-logfile - --log-level debug --bind 0.0.0.0:${PORT}"]

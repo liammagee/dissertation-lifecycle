@@ -33,7 +33,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'dissertation_tracker.urls'
+ROOT_URLCONF = 'dissertation_lifecycle.urls'
 
 TEMPLATES = [
     {
@@ -51,7 +51,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'dissertation_tracker.wsgi.application'
+WSGI_APPLICATION = 'dissertation_lifecycle.wsgi.application'
 
 # Database
 def parse_database_url(url: str) -> dict:
