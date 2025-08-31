@@ -1,3 +1,4 @@
+# fly.toml
 app = "dissertation-lifecycle"
 primary_region = "den"
 
@@ -7,27 +8,22 @@ primary_region = "den"
 [env]
   PORT = "8000"
   DEBUG = "0"
-  # Set these via `fly secrets` in production
-  # SECRET_KEY = "..."
-  # DATABASE_URL = "postgres://..."
   UPLOAD_ROOT = "/data/uploads"
 
 [[mounts]]
   source = "data"
   destination = "/data"
 
-[[services]]
-  processes = ["app"]
+[http_service]
   internal_port = 8000
-  protocol = "tcp"
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 443
-  [services.concurrency]
-    type = "requests"
-    hard_limit = 80
-    soft_limit = 60
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
 
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "15s"
+    timeout = "2s"
+    grace_period = "30s"
