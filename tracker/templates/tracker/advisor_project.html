@@ -11,7 +11,11 @@
           <thead><tr><th>Milestone</th><th>Task</th><th>Status</th></tr></thead>
           <tbody>
             {% for t in tasks %}
-              <tr><td>{{ t.milestone.name }}</td><td>{{ t.title }}</td><td>{{ t.get_status_display }}</td></tr>
+              <tr>
+                <td>{{ t.milestone.name }}</td>
+                <td>{{ t.title }}{% if t.word_target and t.word_target|add:0 > 0 %} <span class="text-muted small ms-2">Target: {{ t.word_target }} words</span>{% endif %}</td>
+                <td>{{ t.get_status_display }}</td>
+              </tr>
             {% empty %}
               <tr><td colspan="3" class="text-muted">No tasks.</td></tr>
             {% endfor %}

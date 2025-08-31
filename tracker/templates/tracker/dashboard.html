@@ -81,6 +81,9 @@
       <tr>
         <td>{{ task.milestone.name }}</td>
         <td><a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+          {% if task.word_target and task.word_target|add:0 > 0 %}
+            <span class="text-muted small ms-2">Target: {{ task.word_target }} words</span>
+          {% endif %}
           {% if task.effort_pct >= 75 %}
             <span class="badge text-bg-success">Effort {{ task.effort_pct }}%</span>
           {% elif task.effort_pct >= 30 %}

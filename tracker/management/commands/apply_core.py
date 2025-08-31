@@ -28,6 +28,12 @@ class Command(BaseCommand):
                     title_lower = (tt.title or '').lower()
                     if mt.key == 'core-literature-review' and 'draft literature review' in title_lower:
                         target = 5500
+                    if mt.key == 'core-methodology' and 'draft methodology' in title_lower:
+                        target = 2500
+                    if mt.key == 'core-findings' and 'draft findings' in title_lower:
+                        target = 2500
+                    if mt.key == 'core-conclusion' and 'draft conclusion' in title_lower:
+                        target = 1500
                     Task.objects.create(
                         project=project,
                         milestone=milestone,
@@ -40,4 +46,3 @@ class Command(BaseCommand):
                     t_order += 1
                 applied += 1
         self.stdout.write(self.style.SUCCESS(f'Applied core milestones to {applied} project(s).'))
-

@@ -86,6 +86,13 @@ class Milestone(models.Model):
     class Meta:
         ordering = ['order', 'id']
 
+    def __str__(self) -> str:
+        user = getattr(self.project.student, 'username', str(self.project.student)) if self.project else 'UnknownUser'
+        project_title = self.project.title if self.project else 'UnknownProject'
+        label = self.name or (self.template.name if self.template else 'Milestone')
+        tmpl = f" | tmpl: {self.template.name}" if self.template else ""
+        return f"{user} • {project_title} • {label}{tmpl}"
+
 
 class Task(models.Model):
     PRIORITY_CHOICES = (
@@ -109,6 +116,14 @@ class Task(models.Model):
 
     class Meta:
         ordering = ['milestone', 'order']
+
+    def __str__(self) -> str:
+        user = getattr(self.project.student, 'username', str(self.project.student)) if self.project else 'UnknownUser'
+        project_title = self.project.title if self.project else 'UnknownProject'
+        milestone_name = self.milestone.name if self.milestone else 'UnknownMilestone'
+        label = self.title or (self.template.title if self.template else 'Task')
+        tmpl = f" | tmpl: {self.template.title}" if self.template else ""
+        return f"{user} • {project_title} • {milestone_name} • {label}{tmpl}"
 
 
 class WordLog(models.Model):
@@ -172,27 +187,3 @@ class Notification(models.Model):
     payload = models.JSONField(default=dict, blank=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
-
-
-# Core section progress (Introduction, Literature Review, Methodology, Findings, Conclusion)
-CORE_SECTION_CHOICES = (
-    ("introduction", "Introduction"),
-    ("literature_review", "Literature Review"),
-    ("methodology", "Methodology"),
-    ("findings", "Findings"),
-    ("conclusion", "Conclusion"),
-)
-
-
-class CoreSectionProgress(models.Model):
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="core_sections")
-    key = models.CharField(max_length=32, choices=CORE_SECTION_CHOICES)
-    percent = models.PositiveIntegerField(default=0)  # 0-100 manual progress
-    word_target = models.PositiveIntegerField(default=0)  # optional words goal for the section
-
-    class Meta:
-        unique_together = [("project", "key")]
-        ordering = ["key"]
-
-    def __str__(self) -> str:
-        return f"{self.get_key_display()} - {self.percent}%"

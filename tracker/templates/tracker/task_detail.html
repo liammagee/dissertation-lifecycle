@@ -2,7 +2,11 @@
 {% load md vis %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center">
-  <h2>{{ task.title }}</h2>
+  <h2>{{ task.title }}
+    {% if task.word_target and task.word_target|add:0 > 0 %}
+      <span class="text-muted small ms-2">Target: {{ task.word_target }} words</span>
+    {% endif %}
+  </h2>
   <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
  </div>
 <p class="text-muted">Milestone: {{ task.milestone.name }} | Due: {{ task.due_date|default:'—' }} | Priority: {{ task.get_priority_display }} | Status: {{ task.get_status_display }}</p>

@@ -44,6 +44,16 @@ def apply_templates_to_project(project: Project, include_phd: bool = False, incl
             if mt.key == 'core-literature-review':
                 if 'draft literature review' in title_lower:
                     target = 5500
+            # Core methodology/findings/conclusion default targets for Draft
+            if mt.key == 'core-methodology':
+                if 'draft methodology' in title_lower:
+                    target = 2500
+            if mt.key == 'core-findings':
+                if 'draft findings' in title_lower:
+                    target = 2500
+            if mt.key == 'core-conclusion':
+                if 'draft conclusion' in title_lower:
+                    target = 1500
 
             Task.objects.create(
                 project=project,
