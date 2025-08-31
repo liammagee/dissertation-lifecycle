@@ -2,6 +2,20 @@
 {% load vis %}
 {% block content %}
 <h2>{{ project.title }}</h2>
+<form method="get" class="row g-2 align-items-end mb-3">
+  <div class="col-auto">
+    <label for="w_status" class="form-label">Status weight (%)</label>
+    <input type="number" min="0" class="form-control" id="w_status" name="w_status" value="{{ w_status|default:70 }}">
+  </div>
+  <div class="col-auto">
+    <label for="w_effort" class="form-label">Effort weight (%)</label>
+    <input type="number" min="0" class="form-control" id="w_effort" name="w_effort" value="{{ w_effort|default:30 }}">
+  </div>
+  <div class="col-auto">
+    <input type="hidden" name="update_weights" value="1" />
+    <button class="btn btn-outline-primary" type="submit">Update weighting</button>
+  </div>
+</form>
 <div class="mb-3 d-flex align-items-center gap-3">
   <div>{% donut completion 120 14 %}</div>
   <div>
@@ -60,7 +74,13 @@
       <tr>
         <td>{{ task.milestone.name }}</td>
         <td><a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
-          <span class="badge text-bg-light">Effort {{ task.effort_pct }}%</span>
+          {% if task.effort_pct >= 75 %}
+            <span class="badge text-bg-success">Effort {{ task.effort_pct }}%</span>
+          {% elif task.effort_pct >= 30 %}
+            <span class="badge text-bg-warning">Effort {{ task.effort_pct }}%</span>
+          {% else %}
+            <span class="badge text-bg-danger">Effort {{ task.effort_pct }}%</span>
+          {% endif %}
           {% if task.template %}
             {% if task.template.guidance_tips or task.template.guidance_url %}
               <button class="btn btn-sm btn-outline-secondary ms-2"
