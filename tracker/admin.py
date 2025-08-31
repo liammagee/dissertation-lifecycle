@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.contrib.auth import get_user_model
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from . import models
 
 
@@ -57,3 +59,22 @@ admin.site.register(models.FeedbackComment)
 admin.site.register(models.Document)
 admin.site.register(models.Notification)
 admin.site.register(models.ProjectNote)
+
+
+# Inline Profile on the built-in User admin for convenient role edits
+class ProfileInline(admin.StackedInline):
+    model = models.Profile
+    can_delete = False
+    fk_name = 'user'
+
+
+class UserAdmin(BaseUserAdmin):
+    inlines = (ProfileInline,)
+
+
+User = get_user_model()
+try:
+    admin.site.unregister(User)
+except admin.sites.NotRegistered:
+    pass
+admin.site.register(User, UserAdmin)
