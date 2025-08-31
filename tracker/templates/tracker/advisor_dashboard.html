@@ -1,0 +1,24 @@
+{% extends 'tracker/base.html' %}
+{% load vis %}
+{% block content %}
+<h2>Advisor Dashboard</h2>
+<div class="text-muted small mb-2">Legend: Donut shows project completion percentage.</div>
+<table class="table table-sm align-middle">
+  <thead>
+    <tr><th>Progress</th><th>Student</th><th>Project</th><th>Tasks</th><th>Completion</th></tr>
+  </thead>
+  <tbody>
+    {% for p in projects %}
+      <tr>
+        <td>{% donut p.completion_percent 48 7 %}</td>
+        <td>{{ p.student.username }}</td>
+        <td><a href="{% url 'advisor_project' p.pk %}">{{ p.title }}</a></td>
+        <td>{{ p.total_tasks }}</td>
+        <td>{{ p.completion_percent }}%</td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="5" class="text-muted">No projects yet.</td></tr>
+    {% endfor %}
+  </tbody>
+  </table>
+{% endblock %}

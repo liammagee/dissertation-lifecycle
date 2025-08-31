@@ -1,0 +1,13 @@
+{% if tpl %}
+  {% if tpl.guidance_tips %}
+    <div class="mb-2">{{ tpl.guidance_tips|linebreaks }}</div>
+  {% endif %}
+  {% if tpl.guidance_url %}
+    <a class="btn btn-sm btn-outline-primary" href="{{ tpl.guidance_url }}" target="_blank">Open guidance</a>
+  {% endif %}
+  {% if not tpl.guidance_tips and not tpl.guidance_url %}
+    <div class="text-muted">No guidance available for this task yet.</div>
+  {% endif %}
+{% else %}
+  <div class="text-muted">No guidance available for this task.</div>
+{% endif %}

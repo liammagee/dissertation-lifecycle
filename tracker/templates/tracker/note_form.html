@@ -1,0 +1,10 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>Edit Note</h2>
+<form method="post">{% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary" type="submit">Save</button>
+  <a class="btn btn-outline-secondary" href="{% url 'project_notes' %}">Cancel</a>
+</form>
+{% endblock %}
+

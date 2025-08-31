@@ -1,0 +1,26 @@
+from django.urls import path
+from django.contrib.auth import views as auth_views
+from . import views
+
+urlpatterns = [
+    path('login/', auth_views.LoginView.as_view(template_name='tracker/login.html'), name='login'),
+    path('logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('signup/', views.signup, name='signup'),
+
+    path('', views.home, name='home'),
+    path('dashboard/', views.dashboard, name='dashboard'),
+    path('project/new/', views.project_new, name='project_new'),
+    path('tasks/<int:pk>/status/', views.task_status, name='task_status'),
+    path('tasks/<int:pk>/', views.task_detail, name='task_detail'),
+    path('tasks/<int:pk>/edit/', views.task_edit, name='task_edit'),
+    path('tasks/<int:pk>/guidance/', views.task_guidance, name='task_guidance'),
+    path('tasks/<int:pk>/upload/', views.upload_document, name='upload_document'),
+    path('documents/<int:pk>/delete/', views.delete_document, name='delete_document'),
+    path('documents/<int:pk>/edit/', views.edit_document, name='edit_document'),
+    path('writing/', views.wordlogs, name='wordlogs'),
+    path('notes/', views.project_notes, name='project_notes'),
+    path('notes/<int:pk>/edit/', views.project_note_edit, name='project_note_edit'),
+    path('notes/<int:pk>/delete/', views.project_note_delete, name='project_note_delete'),
+    path('advisor/', views.advisor_dashboard, name='advisor_dashboard'),
+    path('advisor/projects/<int:pk>/', views.advisor_project, name='advisor_project'),
+]

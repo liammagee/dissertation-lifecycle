@@ -1,0 +1,72 @@
+{% extends 'tracker/base.html' %}
+{% load md vis %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center">
+  <h2>{{ task.title }}</h2>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
+ </div>
+<p class="text-muted">Milestone: {{ task.milestone.name }} | Due: {{ task.due_date|default:'—' }} | Priority: {{ task.get_priority_display }} | Status: {{ task.get_status_display }}</p>
+
+<div class="row g-3">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">Description</div>
+      <div class="card-body">
+        {{ task.description|linebreaks|default:"<span class='text-muted'>No description.</span>"|safe }}
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header">My Notes</div>
+      <div class="card-body">
+        {{ task.user_notes|md|default:"<span class='text-muted'>No notes yet. Use Edit to add your notes.</span>"|safe }}
+        <div class="mt-2"><a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit Notes</a></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header">Guidance</div>
+      <div class="card-body">
+        {% if tpl and tpl.guidance_tips %}
+          <div class="mb-2">{{ tpl.guidance_tips|linebreaks }}</div>
+        {% else %}
+          <div class="text-muted">No tips provided for this task yet.</div>
+        {% endif %}
+        {% if tpl and tpl.guidance_url %}
+          <a class="btn btn-sm btn-outline-primary" href="{{ tpl.guidance_url }}" target="_blank">Learn more</a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header">Attachments</div>
+      <div class="card-body">
+        <form method="post" enctype="multipart/form-data" action="{% url 'upload_document' task.pk %}">{% csrf_token %}
+          <div class="mb-2">{{ upload_form.file }} {{ upload_form.notes }}</div>
+          <button class="btn btn-sm btn-primary" type="submit">Upload</button>
+        </form>
+        <hr>
+        {% if docs %}
+          <ul class="list-unstyled">
+            {% for d in docs %}
+              <li class="mb-1">
+                <a href="{{ d.file.url }}" target="_blank">{{ d.filename }}</a>
+                <span class="text-muted">({{ d.size }} bytes)</span>
+                {% if d.notes %}<div class="text-muted small">{{ d.notes }}</div>{% endif %}
+                <a class="btn btn-sm btn-outline-secondary" href="{% url 'edit_document' d.pk %}">Edit notes</a>
+                <form method="post" action="{% url 'delete_document' d.pk %}" style="display:inline">{% csrf_token %}
+                  <button class="btn btn-sm btn-outline-danger">Delete</button>
+                </form>
+                {% if d.content_type|startswith:"image/" %}
+                  <div class="mt-1"><img src="{{ d.file.url }}" alt="{{ d.filename }}" class="img-fluid" style="max-height:160px"></div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">No attachments yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

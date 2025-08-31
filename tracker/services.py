@@ -1,0 +1,92 @@
+from __future__ import annotations
+
+from typing import Iterable, Tuple
+
+from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task
+
+
+def apply_templates_to_project(project: Project, include_phd: bool = False) -> None:
+    mts: Iterable[MilestoneTemplate] = (
+        MilestoneTemplate.objects.all().order_by('order', 'id')
+    )
+    order = 1
+    for mt in mts:
+        if mt.is_phd_only and not include_phd:
+            continue
+        milestone = Milestone.objects.create(
+            project=project,
+            template=mt,
+            name=mt.name,
+            order=order,
+        )
+        order += 1
+        t_order = 1
+        for tt in TaskTemplate.objects.filter(milestone=mt).order_by('order', 'id'):
+            Task.objects.create(
+                project=project,
+                milestone=milestone,
+                template=tt,
+                title=tt.title,
+                description=tt.description,
+                order=t_order,
+            )
+            t_order += 1
+
+
+def compute_streaks(project: Project) -> tuple[int, int]:
+    """Return (current_streak_days, longest_streak_days) based on WordLog with words>0.
+    A streak is consecutive calendar days with any positive words.
+    """
+    from datetime import date, timedelta
+    logs = list(project.word_logs.filter(words__gt=0).order_by('date').values_list('date', flat=True))
+    if not logs:
+        return 0, 0
+    longest = 1
+    current = 1 if logs[-1] == date.today() else 0
+    run = 1
+    for i in range(1, len(logs)):
+        if logs[i] == logs[i-1] + timedelta(days=1):
+            run += 1
+        elif logs[i] == logs[i-1]:
+            # same day duplicate handled by unique_together but be defensive
+            continue
+        else:
+            if run > longest:
+                longest = run
+            run = 1
+    if run > longest:
+        longest = run
+    # recompute current streak from today backwards
+    current = 0
+    day = date.today()
+    s = set(logs)
+    while day in s:
+        current += 1
+        day = day - timedelta(days=1)
+    return current, longest
+
+
+def task_status_percent(task: Task) -> int:
+    return {
+        'todo': 0,
+        'doing': 50,
+        'done': 100,
+    }.get(task.status, 0)
+
+
+def task_effort(task: Task) -> Tuple[int, int, int]:
+    """Return (words_sum, target, percent) for a task."""
+    target = int(task.word_target or 0)
+    words = 0
+    if target > 0:
+        words = int(task.word_logs.aggregate(total=models.Sum('words'))['total'] or 0)
+    percent = 0 if target <= 0 else min(100, int(round(100 * words / max(1, target))))
+    return words, target, percent
+
+
+def task_combined_percent(task: Task, weights: dict | None = None) -> int:
+    weights = weights or {'status': 70, 'effort': 30}
+    sp = task_status_percent(task)
+    _, __, ep = task_effort(task)
+    tot = max(1, int(weights.get('status', 70)) + int(weights.get('effort', 30)))
+    return int(round((int(weights.get('status', 70)) * sp + int(weights.get('effort', 30)) * ep) / tot))

@@ -1,0 +1,14 @@
+{
+  "title": "Test",
+  "author": "Liam Magee",
+  "supervisor": "Liam Magee",
+  "degree": null,
+  "institution": "UIUC",
+  "section_targets": {
+    "introduction": 1500,
+    "literature_review": 4000,
+    "methodology": 2500,
+    "findings": 2500,
+    "conclusion": 1500
+  }
+}

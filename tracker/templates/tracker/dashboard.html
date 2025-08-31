@@ -1,0 +1,90 @@
+{% extends 'tracker/base.html' %}
+{% load vis %}
+{% block content %}
+<h2>{{ project.title }}</h2>
+<div class="mb-3 d-flex align-items-center gap-3">
+  <div>{% donut completion 120 14 %}</div>
+  <div>
+    <div>Overall completion</div>
+    <div class="text-muted">{{ completion }}%</div>
+    <div class="text-muted small">Legend: donut shows project completion percentage.</div>
+  </div>
+ </div>
+
+{% if milestone_progress %}
+<div class="mb-3">
+  <h5>Milestones</h5>
+  <div class="list-group">
+    {% for mp in milestone_progress %}
+      <div class="list-group-item d-flex align-items-center gap-3">
+        <div>{% donut mp.percent 60 8 %}</div>
+        <div class="flex-grow-1">
+          <div class="d-flex justify-content-between"><strong>{{ mp.m.name }}</strong><span class="text-muted">{{ mp.percent }}% ({{ mp.done }}/{{ mp.total }})</span></div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+ </div>
+{% endif %}
+
+<div class="mb-4">
+  <h5>Radar Overview</h5>
+  <form method="get" class="row g-2 align-items-end mb-2">
+    <input type="hidden" name="update_radar" value="1" />
+    <div class="col-auto form-check">
+      <input class="form-check-input" type="checkbox" id="f_grid" name="show_grid" value="1" {% if radar_show_grid %}checked{% endif %}>
+      <label for="f_grid" class="form-check-label">Show grid</label>
+    </div>
+    <div class="col-auto form-check">
+      <input class="form-check-input" type="checkbox" id="f_labels" name="show_labels" value="1" {% if radar_show_labels %}checked{% endif %}>
+      <label for="f_labels" class="form-check-label">Show labels</label>
+    </div>
+    <div class="col-auto">
+      <label for="f_speed" class="form-label">Sweep speed (s)</label>
+      <input type="number" min="1" max="20" class="form-control" id="f_speed" name="speed" value="{{ radar_speed }}">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-outline-primary" type="submit">Update</button>
+    </div>
+  </form>
+  {% radar radar_points 320 18 radar_show_grid radar_show_labels radar_speed %}
+  <div class="text-muted small mt-2">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
+</div>
+
+<table class="table table-sm align-middle">
+  <thead>
+    <tr><th>Milestone</th><th>Task</th><th>Due</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    {% for task in tasks %}
+      <tr>
+        <td>{{ task.milestone.name }}</td>
+        <td><a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+          {% if task.template %}
+            {% if task.template.guidance_tips or task.template.guidance_url %}
+              <button class="btn btn-sm btn-outline-secondary ms-2"
+                      hx-get="{% url 'task_guidance' task.pk %}"
+                      hx-target="#guidance-body"
+                      hx-swap="innerHTML">
+                Guidance
+              </button>
+            {% endif %}
+          {% endif %}
+        </td>
+        <td>{{ task.due_date|default:'—' }}</td>
+        <td>
+          <form method="post" action="{% url 'task_status' task.pk %}">{% csrf_token %}
+            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
+              <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
+              <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
+              <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
+            </select>
+          </form>
+        </td>
+      </tr>
+    {% empty %}
+      <tr><td colspan="4" class="text-muted">No tasks yet.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>Writing Logs</h2>
+<div class="row g-3">
+  <div class="col-md-5">
+    <div class="card">
+      <div class="card-header">Add Entry</div>
+      <div class="card-body">
+        <form method="post">{% csrf_token %}
+          {{ form.as_p }}
+          <button class="btn btn-primary" type="submit">Save</button>
+        </form>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header">Streaks</div>
+      <div class="card-body">
+        <div>Current streak: <strong>{{ current_streak }}</strong> day(s)</div>
+        <div>Longest streak: <strong>{{ longest_streak }}</strong> day(s)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">Last 14 days</div>
+      <div class="card-body">
+        <div class="text-muted">(Chart placeholder) — shows bars for last 14 days.</div>
+      </div>
+    </div>
+    <div class="card mt-3">
+      <div class="card-header">All entries</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Date</th><th>Words</th><th>Note</th></tr></thead>
+          <tbody>
+            {% for wl in logs %}
+              <tr><td>{{ wl.date }}</td><td>{{ wl.words }}</td><td>{{ wl.note }}</td></tr>
+            {% empty %}
+              <tr><td colspan="3" class="text-muted">No logs yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+

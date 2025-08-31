@@ -1,0 +1,120 @@
+{% extends 'tracker/base.html' %}
+{% load vis md %}
+{% block content %}
+<h2>{{ project.title }} <span class="text-muted" style="font-size:.8em">by {{ project.student.username }}</span></h2>
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Tasks</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Milestone</th><th>Task</th><th>Status</th></tr></thead>
+          <tbody>
+            {% for t in tasks %}
+              <tr><td>{{ t.milestone.name }}</td><td>{{ t.title }}</td><td>{{ t.get_status_display }}</td></tr>
+            {% empty %}
+              <tr><td colspan="3" class="text-muted">No tasks.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Project Notes</div>
+      <div class="card-body">
+        {% if notes %}
+          <div class="list-group">
+            {% for n in notes %}
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                  <strong>{{ n.title }}</strong>
+                  <span class="text-muted small">{{ n.created_at }} by {{ n.author.username }}</span>
+                </div>
+                <div>{{ n.body|md }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">No notes.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Attachments</div>
+      <div class="card-body">
+        {% if docs %}
+          <ul class="list-unstyled">
+            {% for d in docs %}
+              <li class="mb-2">
+                <a href="{{ d.file.url }}" target="_blank">{{ d.filename }}</a>
+                <span class="text-muted small">({{ d.size }} bytes){% if d.task %} — {{ d.task.title }}{% endif %}</span>
+                {% if d.notes %}<div class="text-muted small">{{ d.notes }}</div>{% endif %}
+                {% if d.content_type|startswith:"image/" %}
+                  <div class="mt-1"><img src="{{ d.file.url }}" alt="{{ d.filename }}" class="img-fluid" style="max-height:160px"></div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="text-muted">No attachments.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-header">Feedback</div>
+      <div class="card-body">
+        <form method="post">{% csrf_token %}
+          <input type="hidden" name="new_feedback" value="1" />
+          <div class="mb-2"><textarea class="form-control" name="note" rows="2" placeholder="Request feedback or leave a note to the student"></textarea></div>
+          <button class="btn btn-sm btn-primary" type="submit">Create request</button>
+        </form>
+        <hr>
+        {% if feedback %}
+          <div class="accordion" id="fb">
+            {% for fr in feedback %}
+              <div class="accordion-item">
+                <h2 class="accordion-header">
+                  <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#fr{{ fr.pk }}">Request #{{ fr.pk }} — {{ fr.status }}</button>
+                </h2>
+                <div id="fr{{ fr.pk }}" class="accordion-collapse collapse" data-bs-parent="#fb">
+                  <div class="accordion-body">
+                    <div class="mb-2">{{ fr.note|linebreaks }}</div>
+                    <div class="mb-2">
+                      <strong>Comments</strong>
+                      <ul class="list-unstyled mb-2">
+                        {% for c in fr.comments.all %}
+                          <li class="mb-1"><span class="text-muted small">{{ c.author.username }}:</span> {{ c.message|linebreaks }}</li>
+                        {% empty %}
+                          <li class="text-muted">No comments yet.</li>
+                        {% endfor %}
+                      </ul>
+                      <form method="post">{% csrf_token %}
+                        <input type="hidden" name="add_comment" value="1" />
+                        <input type="hidden" name="request_id" value="{{ fr.pk }}" />
+                        <div class="input-group input-group-sm">
+                          <input class="form-control" name="message" placeholder="Add comment...">
+                          <button class="btn btn-outline-secondary" type="submit">Send</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-muted">No feedback requests.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

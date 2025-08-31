@@ -1,0 +1,27 @@
+{
+  "title": "test",
+  "author": "Liam Magee",
+  "supervisor": "Liam Magee",
+  "degree": "EdD",
+  "institution": "UIUC",
+  "section_targets": {
+    "introduction": 1500,
+    "literature_review": 4000,
+    "methodology": 2500,
+    "findings": 2500,
+    "conclusion": 1500
+  },
+  "lifecycle_phases": [
+    "Plan",
+    "Collect",
+    "Synthesize",
+    "Draft",
+    "Revise",
+    "Finalize"
+  ],
+  "lifecycle_progress": {},
+  "progress_weights": {
+    "words": 70,
+    "lifecycle": 30
+  }
+}

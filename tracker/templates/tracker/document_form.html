@@ -1,0 +1,15 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>Edit Attachment Notes</h2>
+<p><a href="{{ doc.file.url }}" target="_blank">{{ doc.filename }}</a></p>
+<form method="post">{% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary" type="submit">Save</button>
+  {% if doc.task_id %}
+    <a class="btn btn-outline-secondary" href="{% url 'task_detail' doc.task_id %}">Cancel</a>
+  {% else %}
+    <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Cancel</a>
+  {% endif %}
+</form>
+{% endblock %}
+
