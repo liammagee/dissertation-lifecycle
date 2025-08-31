@@ -8,7 +8,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', '1') == '1'
 # ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
-ALLOWED_HOSTS = ["dissertation-lifecycle.fly.dev", ".fly.dev", "localhost"]
+ALLOWED_HOSTS = ["*"]
+# ALLOWED_HOSTS = ["dissertation-lifecycle.fly.dev", ".fly.dev", "localhost"]
 CSRF_TRUSTED_ORIGINS = ["https://dissertation-lifecycle.fly.dev"]
 
 INSTALLED_APPS = [
@@ -23,6 +24,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -89,6 +91,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.getenv('STATIC_ROOT', str(BASE_DIR / 'staticfiles'))
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.getenv('UPLOAD_ROOT', str(BASE_DIR / 'uploads'))

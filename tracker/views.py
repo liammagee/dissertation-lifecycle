@@ -7,6 +7,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.mail import send_mail
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
+from django.http import HttpResponse, JsonResponse
 from django.db.models import Count
 
 from .forms import (
@@ -498,3 +499,8 @@ def project_note_delete(request, pk: int):
         messages.success(request, 'Note deleted')
         return redirect('project_notes')
     return render(request, 'tracker/note_delete_confirm.html', {'note': note})
+
+
+def healthz(request):
+    """Lightweight health check endpoint for Fly.io."""
+    return JsonResponse({"status": "ok"})
