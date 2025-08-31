@@ -49,7 +49,7 @@ def dashboard(request):
     project = Project.objects.filter(student=request.user, status='active').first()
     if not project:
         return redirect('project_new')
-    tasks = project.tasks.select_related('milestone').all()
+    tasks = list(project.tasks.select_related('milestone').all())
     completion = project.completion_percent()
     # Per-milestone progress
     milestones = project.milestones.prefetch_related('tasks').all()
@@ -79,6 +79,11 @@ def dashboard(request):
         radar_show_grid = request.session.get('radar_show_grid', True)
         radar_show_labels = request.session.get('radar_show_labels', True)
         radar_speed = request.session.get('radar_speed', 6)
+    for t in tasks:
+        try:
+            t.effort_pct = task_effort(t)[2]
+        except Exception:
+            t.effort_pct = 0
     return render(request, 'tracker/dashboard.html', {
         'project': project,
         'tasks': tasks,
@@ -88,6 +93,7 @@ def dashboard(request):
         'radar_show_grid': radar_show_grid,
         'radar_show_labels': radar_show_labels,
         'radar_speed': radar_speed,
+        # tasks now carry task.effort_pct
     })
 
 

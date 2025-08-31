@@ -22,6 +22,20 @@ def apply_templates_to_project(project: Project, include_phd: bool = False) -> N
         order += 1
         t_order = 1
         for tt in TaskTemplate.objects.filter(milestone=mt).order_by('order', 'id'):
+            # Heuristics to set default word targets for literature reviews
+            target = 0
+            title_lower = tt.title.lower()
+            if mt.key == 'chapter2-general':
+                if 'start general field writing' in title_lower:
+                    target = 5500
+                if 'goal' in title_lower and '5000' in title_lower:
+                    target = 5500
+            if mt.key == 'chapter2-special':
+                if 'start special field writing' in title_lower:
+                    target = 4500
+                if 'goal' in title_lower and '4000' in title_lower:
+                    target = 4500
+
             Task.objects.create(
                 project=project,
                 milestone=milestone,
@@ -29,6 +43,7 @@ def apply_templates_to_project(project: Project, include_phd: bool = False) -> N
                 title=tt.title,
                 description=tt.description,
                 order=t_order,
+                word_target=target,
             )
             t_order += 1
 

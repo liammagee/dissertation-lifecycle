@@ -6,6 +6,15 @@
   <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
  </div>
 <p class="text-muted">Milestone: {{ task.milestone.name }} | Due: {{ task.due_date|default:'—' }} | Priority: {{ task.get_priority_display }} | Status: {{ task.get_status_display }}</p>
+{% if word_target and effort_pct >= 100 and task.status != 'done' %}
+  <div class="alert alert-success d-flex justify-content-between align-items-center">
+    <div>You reached your word target for this task. Mark as done?</div>
+    <form method="post" action="{% url 'task_status' task.pk %}">{% csrf_token %}
+      <input type="hidden" name="status" value="done" />
+      <button class="btn btn-sm btn-success" type="submit">Mark Done</button>
+    </form>
+  </div>
+{% endif %}
 
 <div class="row g-3">
   <div class="col-md-7">
