@@ -4,6 +4,8 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
+from django.core.mail import send_mail
+from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.db.models import Count
 
@@ -17,7 +19,7 @@ from .forms import (
     ProjectNoteForm,
 )
 from .models import Profile, Project, Task, Document, ProjectNote
-from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent
+from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent, compute_badges
 
 
 def signup(request):
@@ -113,6 +115,19 @@ def dashboard(request):
         'radar_speed': radar_speed,
         'w_status': w_status,
         'w_effort': w_effort,
+        badges = compute_badges(project)
+    return render(request, 'tracker/dashboard.html', {
+        'project': project,
+        'tasks': tasks,
+        'completion': completion,
+        'milestone_progress': milestone_progress,
+        'radar_points': radar_points,
+        'radar_show_grid': radar_show_grid,
+        'radar_show_labels': radar_show_labels,
+        'radar_speed': radar_speed,
+        'w_status': w_status,
+        'w_effort': w_effort,
+        'badges': badges,
         # tasks now carry task.effort_pct
     })
 
@@ -265,6 +280,16 @@ def advisor_project(request, pk: int):
             if fr_note:
                 FeedbackRequest.objects.create(project=project, note=fr_note)
                 messages.success(request, 'Feedback request created')
+                to = getattr(project.student, 'email', None)
+                if to:
+                    send_mail(
+                        subject=f"Feedback request for {project.title}",
+                        message=(f"Your advisor requested feedback on your project.\n\n{fr_note}\n\n"
+                                 "Visit your dashboard to respond."),
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                        recipient_list=[to],
+                        fail_silently=True,
+                    )
                 return redirect('advisor_project', pk=pk)
         elif 'add_comment' in request.POST:
             req_id = request.POST.get('request_id')
@@ -276,6 +301,16 @@ def advisor_project(request, pk: int):
             if fr and msg:
                 FeedbackComment.objects.create(request=fr, author=request.user, message=msg)
                 messages.success(request, 'Comment added')
+                to = getattr(project.student, 'email', None)
+                if to:
+                    send_mail(
+                        subject=f"New comment on feedback request #{fr.pk}",
+                        message=(f"Advisor commented:\n\n{msg}\n\n"
+                                 "Visit your dashboard to view."),
+                        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                        recipient_list=[to],
+                        fail_silently=True,
+                    )
                 return redirect('advisor_project', pk=pk)
     feedback = project.feedback_requests.prefetch_related('comments__author').all()
     return render(request, 'tracker/advisor_project.html', {
@@ -285,6 +320,110 @@ def advisor_project(request, pk: int):
         'docs': docs,
         'feedback': feedback,
     })
+
+
+@login_required
+def advisor_project_export_json(request, pk: int):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import json
+    from django.http import HttpResponse
+    project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
+    tasks = list(project.tasks.select_related('milestone').all())
+    data = {
+        'project_id': project.id,
+        'author': project.student.get_username(),
+        'email': project.student.email,
+        'title': project.title,
+        'tasks': [
+            {
+                'id': t.id,
+                'milestone': t.milestone.name if t.milestone else None,
+                'title': t.title,
+                'status': t.status,
+                'priority': t.priority,
+                'word_target': t.word_target,
+                'due_date': t.due_date.isoformat() if t.due_date else None,
+                'combined_percent': task_combined_percent(t),
+            }
+            for t in tasks
+        ],
+    }
+    payload = json.dumps(data, indent=2)
+    return HttpResponse(payload, content_type='application/json')
+
+
+@login_required
+def advisor_project_export_csv(request, pk: int):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    from django.http import HttpResponse
+    project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = f'attachment; filename="project_{project.id}_tasks.csv"'
+    writer = csv.writer(resp)
+    writer.writerow(['task_id', 'milestone', 'title', 'status', 'priority', 'word_target', 'due_date', 'combined_percent'])
+    for t in project.tasks.select_related('milestone').all():
+        writer.writerow([
+            t.id,
+            t.milestone.name if t.milestone else '',
+            t.title,
+            t.status,
+            t.priority,
+            t.word_target,
+            t.due_date.isoformat() if t.due_date else '',
+            task_combined_percent(t),
+        ])
+    return resp
+
+
+@login_required
+def advisor_export_json(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import json
+    from django.http import HttpResponse
+    data = []
+    for p in Project.objects.select_related('student').all():
+        tasks = list(p.tasks.select_related('milestone').all())
+        total = len(tasks)
+        combined = int(round(sum(task_combined_percent(t) for t in tasks) / total)) if total else 0
+        done = sum(1 for t in tasks if t.status == 'done')
+        data.append({
+            'project_id': p.id,
+            'author': p.student.get_username(),
+            'email': p.student.email,
+            'title': p.title,
+            'total_tasks': total,
+            'done_tasks': done,
+            'combined_percent': combined,
+        })
+    payload = json.dumps(data, indent=2)
+    return HttpResponse(payload, content_type='application/json')
+
+
+@login_required
+def advisor_export_csv(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename="advisor_export.csv"'
+    writer = csv.writer(resp)
+    writer.writerow(['project_id', 'author', 'email', 'title', 'total_tasks', 'done_tasks', 'combined_percent'])
+    for p in Project.objects.select_related('student').all():
+        tasks = list(p.tasks.select_related('milestone').all())
+        total = len(tasks)
+        combined = int(round(sum(task_combined_percent(t) for t in tasks) / total)) if total else 0
+        done = sum(1 for t in tasks if t.status == 'done')
+        writer.writerow([p.id, p.student.get_username(), p.student.email, p.title, total, done, combined])
+    return resp
 
 
 @login_required
@@ -370,4 +509,3 @@ def project_note_delete(request, pk: int):
         messages.success(request, 'Note deleted')
         return redirect('project_notes')
     return render(request, 'tracker/note_delete_confirm.html', {'note': note})
-

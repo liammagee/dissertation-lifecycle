@@ -124,3 +124,19 @@ def task_combined_percent(task: Task, weights: dict | None = None) -> int:
     _, __, ep = task_effort(task)
     tot = max(1, int(weights.get('status', 70)) + int(weights.get('effort', 30)))
     return int(round((int(weights.get('status', 70)) * sp + int(weights.get('effort', 30)) * ep) / tot))
+
+
+def compute_badges(project: Project) -> list[str]:
+    """Return a list of simple badge labels for the project (streak/wordcount)."""
+    # Streak badges
+    current, longest = compute_streaks(project)
+    badges: list[str] = []
+    for days, label in [(3, 'Streak 3+'), (7, 'Streak 7+'), (14, 'Streak 14+'), (30, 'Streak 30+')]:
+        if current >= days:
+            badges.append(label)
+    # Wordcount badges (lifetime words logged)
+    total_words = int(project.word_logs.aggregate(total=dj_models.Sum('words'))['total'] or 0)
+    for thresh, label in [(1000, '1k Words'), (5000, '5k Words'), (10000, '10k Words')]:
+        if total_words >= thresh:
+            badges.append(label)
+    return badges

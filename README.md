@@ -145,6 +145,7 @@ Key URLs
 - `/login` and `/logout`
 - `/dashboard` student dashboard (tasks and completion)
 - `/advisor` advisor dashboard (simple list of projects)
+- Advisor exports: `/advisor/export.json`, `/advisor/export.csv`
 - `/admin/` Django admin (manage templates, tasks, etc.)
 - Task detail/edit: `/tasks/<id>/` and `/tasks/<id>/edit/`
 

@@ -2,6 +2,13 @@
 {% load vis %}
 {% block content %}
 <h2>{{ project.title }}</h2>
+{% if badges %}
+  <div class="mb-2">
+    {% for b in badges %}
+      <span class="badge rounded-pill text-bg-info me-1">{{ b }}</span>
+    {% endfor %}
+  </div>
+{% endif %}
 <form method="get" class="row g-2 align-items-end mb-3">
   <div class="col-auto">
     <label for="w_status" class="form-label">Status weight (%)</label>

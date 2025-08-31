@@ -23,4 +23,8 @@ urlpatterns = [
     path('notes/<int:pk>/delete/', views.project_note_delete, name='project_note_delete'),
     path('advisor/', views.advisor_dashboard, name='advisor_dashboard'),
     path('advisor/projects/<int:pk>/', views.advisor_project, name='advisor_project'),
+    path('advisor/projects/<int:pk>/export.json', views.advisor_project_export_json, name='advisor_project_export_json'),
+    path('advisor/projects/<int:pk>/export.csv', views.advisor_project_export_csv, name='advisor_project_export_csv'),
+    path('advisor/export.json', views.advisor_export_json, name='advisor_export_json'),
+    path('advisor/export.csv', views.advisor_export_csv, name='advisor_export_csv'),
 ]

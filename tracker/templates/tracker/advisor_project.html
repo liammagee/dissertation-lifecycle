@@ -5,7 +5,13 @@
 <div class="row g-3">
   <div class="col-lg-6">
     <div class="card">
-      <div class="card-header">Tasks</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Tasks</span>
+        <span>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_json' project.pk %}">Export JSON</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_csv' project.pk %}">Export CSV</a>
+        </span>
+      </div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0">
           <thead><tr><th>Milestone</th><th>Task</th><th>Status</th></tr></thead>
