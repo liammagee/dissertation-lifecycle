@@ -8,7 +8,7 @@ from django.core.mail import send_mail
 from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponse, JsonResponse
-from django.db.models import Count
+from django.db.models import Count, Max
 from datetime import date, timedelta
 
 from .forms import (
@@ -433,7 +433,8 @@ def task_new(request):
             t.status = 'todo'
             # Best-effort ordering: append at end of chosen milestone
             try:
-                max_order = int(project.tasks.filter(milestone=t.milestone).aggregate(m=models.Max('order'))['order__max'] or 0)
+                agg = project.tasks.filter(milestone=t.milestone).aggregate(max_order=Max('order'))
+                max_order = int(agg.get('max_order') or 0)
             except Exception:
                 max_order = 0
             t.order = max_order + 1

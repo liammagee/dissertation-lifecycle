@@ -78,26 +78,45 @@ def radar(
             grid_rings.append(f'<circle cx="{cx}" cy="{cy}" r="{rr}" fill="none" stroke="#e9ecef" stroke-width="1" />')
 
     points_svg = []
-    # Glow timing: each point gets an animation delay proportional to its angle.
-    # One full rotation takes `speed` seconds, so delay = frac * speed.
+    # Wedge spans clockwise from the needle (12 o'clock) to +angle; needle leads.
+    # Wedge angular width in radians (wider trail)
+    wedge_angle = 1.0
+    sweep_center_frac = ((wedge_angle) / 2.0) / (2 * math.pi)
+    # Endpoint of the wedge tail (counterclockwise from the needle by wedge_angle)
+    end_x = cx + max_r * math.cos(math.pi / 2 + wedge_angle)
+    end_y = cy - max_r * math.sin(math.pi / 2 + wedge_angle)
+    rot_period = max(1.0, float(speed))
+    # Make dots/labels glow just before the sweep center arrives
+    lead_angle = wedge_angle * 0.2  # 20% of wedge width ahead of center
+    lead_frac = lead_angle / (2 * math.pi)
     for i, (x, y) in enumerate(coords):
         frac = (i / max(1, n))  # 0..1 starting at 12 o'clock
-        delay = max(0.0, float(speed)) * frac
+        aligned = (frac - sweep_center_frac + lead_frac) % 1.0
+        delay = rot_period * aligned
         points_svg.append(
             f'<circle class="pt" cx="{x}" cy="{y}" r="4" fill="#198754" style="animation-delay: {delay:.3f}s;" />'
         )
 
     labels_svg = []
     if show_labels:
-        for label, x, y in labels:
-            labels_svg.append(f'<text x="{x}" y="{y - 8}" text-anchor="middle" fill="#6c757d" font-size="10">{label}</text>')
+        rot_period = max(1.0, float(speed))
+        for i, (label, x, y) in enumerate(labels):
+            frac = (i / max(1, n))
+            aligned = (frac - sweep_center_frac + lead_frac) % 1.0
+            delay = rot_period * aligned
+            labels_svg.append(
+                f'<text class="lbl" x="{x}" y="{y - 8}" text-anchor="middle" font-size="10" style="animation-delay: {delay:.3f}s;">{label}</text>'
+            )
 
     svg = f"""
     <div class="radar" style="width:{size}px;height:{size}px;display:inline-block;position:relative;">
       <svg width="{size}" height="{size}" viewBox="0 0 {size} {size}">
         <defs>
-          <linearGradient id="sweepGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="rgba(0,200,150,0.20)"/>
+          <!-- Gradient aligned along the wedge from the needle (opaque) to tail (transparent) -->
+          <linearGradient id="sweepGrad" gradientUnits="userSpaceOnUse"
+            x1="{cx}" y1="{cy - max_r}"
+            x2="{end_x}" y2="{end_y}">
+            <stop offset="0%" stop-color="rgba(0,200,150,0.22)"/>
             <stop offset="100%" stop-color="rgba(0,200,150,0.0)"/>
           </linearGradient>
         </defs>
@@ -106,7 +125,8 @@ def radar(
           {''.join(grid_rings)}
           <!-- sweep arm -->
           <g class="sweep" style="transform-origin: {cx}px {cy}px;">
-            <path d="M {cx} {cy} L {cx} {cy - max_r} A {max_r} {max_r} 0 0 1 {cx + max_r*math.cos(0.35)} {cy - max_r*math.sin(0.35)} Z" fill="url(#sweepGrad)" />
+            <path d="M {cx} {cy} L {cx} {cy - max_r} A {max_r} {max_r} 0 0 0 {end_x} {end_y} Z" fill="url(#sweepGrad)" />
+            <line class="needle" x1="{cx}" y1="{cy}" x2="{cx}" y2="{cy - max_r}" />
           </g>
           {''.join(points_svg)}
           {''.join(labels_svg)}
@@ -115,15 +135,24 @@ def radar(
       </svg>
     </div>
     <style>
-      @keyframes radar-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-      .radar .sweep { animation: radar-spin {max(1,int(speed))}s linear infinite; }
-      @keyframes radar-glow {
-        0%   { filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }
-        3%   { filter: drop-shadow(0 0 10px rgba(25,135,84,0.9)); r:5.5; }
-        8%   { filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }
-        100% { filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }
-      }
-      .radar .pt { animation: radar-glow {max(1,int(speed))}s linear infinite; }
+      @keyframes radar-spin {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
+      .radar .sweep {{ animation: radar-spin {max(1,int(speed))}s linear infinite; }}
+      @keyframes radar-glow {{
+        0%   {{ filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }}
+        5%   {{ filter: drop-shadow(0 0 14px rgba(25,135,84,0.95)); r:6; }}
+        20%  {{ filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }}
+        100% {{ filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }}
+      }}
+      .radar .pt {{ animation: radar-glow {max(1,int(speed))}s linear infinite; }}
+      .radar .lbl {{ fill: #6c757d; }}
+      @keyframes radar-label-glow {{
+        0%   {{ fill: #6c757d; filter: none; }}
+        6%   {{ fill: #198754; filter: drop-shadow(0 0 10px rgba(25,135,84,0.9)); }}
+        22%  {{ fill: #6c757d; filter: none; }}
+        100% {{ fill: #6c757d; filter: none; }}
+      }}
+      .radar .lbl {{ animation: radar-label-glow {max(1,int(speed))}s linear infinite; }}
+      .radar .needle {{ stroke: #17a673; stroke-width: 1.5; stroke-linecap: round; opacity: 0.9; filter: drop-shadow(0 0 8px rgba(23,166,115,0.7)); }}
     </style>
     """
     return mark_safe(svg)
