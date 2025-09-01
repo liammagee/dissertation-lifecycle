@@ -2,6 +2,29 @@
 {% load vis %}
 {% block content %}
 <h2>Advisor Dashboard</h2>
+<form method="get" class="row g-2 align-items-end mb-2">
+  <div class="col-auto">
+    <label class="form-label">Search</label>
+    <input type="text" class="form-control form-control-sm" name="q" value="{{ q|default:'' }}" placeholder="Student or title">
+  </div>
+  <div class="col-auto">
+    <label class="form-label">Sort</label>
+    <select class="form-select form-select-sm" name="sort">
+      <option value="student" {% if sort == 'student' %}selected{% endif %}>Student</option>
+      <option value="title" {% if sort == 'title' %}selected{% endif %}>Title</option>
+      <option value="combined" {% if sort == 'combined' %}selected{% endif %}>Combined %</option>
+      <option value="status" {% if sort == 'status' %}selected{% endif %}>Status %</option>
+      <option value="tasks" {% if sort == 'tasks' %}selected{% endif %}>Tasks</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <label class="form-label">Per page</label>
+    <input type="number" min="5" max="100" class="form-control form-control-sm" name="per" value="{{ per|default:20 }}">
+  </div>
+  <div class="col-auto">
+    <button class="btn btn-sm btn-outline-primary" type="submit">Apply</button>
+  </div>
+</form>
 <div class="text-muted small mb-2">Legend: Donut shows project completion percentage.</div>
 <table class="table table-sm align-middle">
   <thead>
@@ -22,4 +45,21 @@
     {% endfor %}
   </tbody>
   </table>
+{% if page_obj %}
+<nav aria-label="Projects pages">
+  <ul class="pagination pagination-sm">
+    {% if page_obj.has_previous %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ q }}&sort={{ sort }}&per={{ per }}">Prev</a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">Prev</span></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ q }}&sort={{ sort }}&per={{ per }}">Next</a></li>
+    {% else %}
+      <li class="page-item disabled"><span class="page-link">Next</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
 {% endblock %}

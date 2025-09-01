@@ -648,7 +648,14 @@ def advisor_dashboard(request):
     profile = getattr(request.user, 'profile', None)
     if not profile or profile.role not in ('advisor', 'admin'):
         return redirect('dashboard')
-    projects = list(Project.objects.select_related('student').annotate(total_tasks=Count('tasks')))
+    from django.core.paginator import Paginator
+    q = (request.GET.get('q') or '').strip()
+    sort = (request.GET.get('sort') or 'student').strip()
+    per = max(1, min(100, int(request.GET.get('per', '20'))))
+    qs = Project.objects.select_related('student').annotate(total_tasks=Count('tasks'))
+    if q:
+        qs = qs.filter(title__icontains=q) | qs.filter(student__username__icontains=q)
+    projects = list(qs)
     for p in projects:
         ts = list(p.tasks.select_related('milestone').all())
         total = len(ts)
@@ -656,7 +663,25 @@ def advisor_dashboard(request):
             p.combined_percent = int(round(sum(task_combined_percent(t) for t in ts) / total)) if total else 0
         except Exception:
             p.combined_percent = 0
-    return render(request, 'tracker/advisor_dashboard.html', {'projects': projects})
+        p.done_tasks = sum(1 for t in ts if t.status == 'done')
+    key_funcs = {
+        'student': lambda x: (getattr(x.student, 'username', ''), x.title.lower()),
+        'title': lambda x: (x.title.lower(), getattr(x.student, 'username', '')),
+        'combined': lambda x: (-int(x.combined_percent or 0), -x.done_tasks, -x.total_tasks),
+        'status': lambda x: (-x.completion_percent(), -x.total_tasks),
+        'tasks': lambda x: (-int(x.total_tasks or 0), x.title.lower()),
+    }
+    if sort in key_funcs:
+        projects.sort(key=key_funcs[sort])
+    paginator = Paginator(projects, per)
+    page_obj = Paginator(projects, per).get_page(request.GET.get('page'))
+    return render(request, 'tracker/advisor_dashboard.html', {
+        'projects': page_obj.object_list,
+        'page_obj': page_obj,
+        'q': q,
+        'sort': sort,
+        'per': per,
+    })
 
 
 
@@ -702,7 +727,22 @@ def advisor_project(request, pk: int):
             qs = qs.filter(milestone_id=int(milestone_id))
         except Exception:
             pass
-    tasks = list(qs)
+    # Search and ordering
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        qs = qs.filter(title__icontains=q)
+    order = (request.GET.get('order') or 'milestone').strip()
+    if order == 'due':
+        qs = qs.order_by('due_date__isnull', 'due_date', 'milestone__order', 'order', 'pk')
+    elif order == 'priority':
+        qs = qs.order_by('priority', 'milestone__order', 'order', 'pk')
+    else:
+        qs = qs.order_by('milestone__order', 'order', 'pk')
+    # Pagination
+    from django.core.paginator import Paginator
+    per = max(1, min(100, int(request.GET.get('per', '25'))))
+    page_obj = Paginator(qs, per).get_page(request.GET.get('page'))
+    tasks = list(page_obj.object_list)
     notes = project.notes.select_related('author').all()
     docs = project.documents.select_related('task').order_by('-uploaded_at')
     from .models import FeedbackRequest, FeedbackComment, Document
@@ -789,6 +829,10 @@ def advisor_project(request, pk: int):
         'milestone_id': milestone_id or '',
         'milestones': milestones,
         'export_filters': export_filters,
+        'page_obj': page_obj,
+        'order': order,
+        'q': q,
+        'per': per,
     })
 
 

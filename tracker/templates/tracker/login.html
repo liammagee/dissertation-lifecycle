@@ -7,6 +7,12 @@
       {{ form.as_p }}
       <button class="btn btn-primary" type="submit">Login</button>
     </form>
+    {% if form.non_field_errors %}
+      <div class="alert alert-warning mt-2 py-2 small">
+        Tip: If your account is inactive, you can
+        <a href="{% url 'resend_activation' %}">resend the activation email</a>.
+      </div>
+    {% endif %}
     <div class="mt-2 d-flex gap-3">
       <a href="{% url 'password_reset' %}">Forgot password?</a>
       <a href="{% url 'resend_activation' %}">Resend activation</a>

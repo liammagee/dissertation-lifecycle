@@ -152,6 +152,8 @@ Key URLs
 - Task detail/edit: `/tasks/<id>/` and `/tasks/<id>/edit/`
 - Writing logs CSV (student): `/writing/export.csv`
   - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
+ - Auth: password reset — `/password-reset/`, `/password-reset/done/`, `/reset/<uidb64>/<token>/`, `/reset/done/`
+ - Auth: resend activation — `/resend-activation/`
 
 Storage on Fly.io
 - Use a Fly Volume mounted at `/data`; set `UPLOAD_ROOT=/data/uploads`.
