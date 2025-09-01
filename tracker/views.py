@@ -22,6 +22,7 @@ from .forms import (
     DocumentNotesForm,
     ProjectNoteForm,
     SignupForm,
+    ResendActivationForm,
 )
 from .models import Profile, Project, Task, Document, ProjectNote
 from django.contrib.auth.models import User
@@ -90,6 +91,49 @@ def activate(request, uidb64: str, token: str):
         return redirect('project_new')
     messages.error(request, 'Activation link is invalid or expired.')
     return redirect('login')
+
+
+def resend_activation(request):
+    require_verify = getattr(settings, 'REQUIRE_EMAIL_VERIFICATION', False)
+    if not require_verify:
+        messages.info(request, 'Email verification is not required.')
+        return redirect('login')
+    if request.method == 'POST':
+        form = ResendActivationForm(request.POST)
+        if form.is_valid():
+            email = form.cleaned_data['email'].strip()
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                user = None
+            if not user:
+                messages.error(request, 'No account found with that email.')
+                return redirect('resend_activation')
+            if user.is_active:
+                messages.info(request, 'Your account is already active. You can log in.')
+                return redirect('login')
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            try:
+                from django.urls import reverse
+                activate_url = request.build_absolute_uri(reverse('activate', args=[uid, token]))
+            except Exception:
+                activate_url = f"/activate/{uid}/{token}/"
+            send_mail(
+                subject='Activate your account',
+                message=(
+                    'Use the link below to activate your account:\n\n'
+                    f'{activate_url}\n\n'
+                ),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                recipient_list=[email],
+                fail_silently=True,
+            )
+            messages.success(request, 'Activation email sent if the account exists and needs activation.')
+            return redirect('login')
+    else:
+        form = ResendActivationForm()
+    return render(request, 'tracker/resend_activation.html', {'form': form})
 
 
 def home(request):

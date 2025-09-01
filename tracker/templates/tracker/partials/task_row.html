@@ -1,11 +1,11 @@
 {% load vis %}
-<tr id="task-{{ task.pk }}">
+<tr id="task-{{ task.pk }}" class="task-row" tabindex="0" data-task-id="{{ task.pk }}">
   <td>{{ task.milestone.name }}</td>
   <td>
     <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
     <span class="ms-2">
       {% if task.can_move_up %}
-        <form method="post" action="{% url 'task_move' task.pk 'up' %}" class="d-inline"
+        <form method="post" action="{% url 'task_move' task.pk 'up' %}" class="d-inline move-up"
               hx-post="{% url 'task_move' task.pk 'up' %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
           <button class="btn btn-sm btn-outline-secondary" title="Move up">↑</button>
         </form>
@@ -13,7 +13,7 @@
         <button class="btn btn-sm btn-outline-secondary" disabled>↑</button>
       {% endif %}
       {% if task.can_move_down %}
-        <form method="post" action="{% url 'task_move' task.pk 'down' %}" class="d-inline"
+        <form method="post" action="{% url 'task_move' task.pk 'down' %}" class="d-inline move-down"
               hx-post="{% url 'task_move' task.pk 'down' %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
           <button class="btn btn-sm btn-outline-secondary" title="Move down">↓</button>
         </form>

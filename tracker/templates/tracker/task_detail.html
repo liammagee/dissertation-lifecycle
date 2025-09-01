@@ -17,6 +17,7 @@
     {% endif %}
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
     <a class="btn btn-sm btn-outline-danger" href="{% url 'task_delete' task.pk %}">Delete</a>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#shortcutsModal">? Shortcuts</button>
   </div>
  </div>
 <p class="text-muted">Milestone: {{ task.milestone.name }} | Due: {{ task.due_date|default:'—' }} | Priority: {{ task.get_priority_display }} | Status: {{ task.get_status_display }}</p>
@@ -93,6 +94,30 @@
         {% else %}
           <div class="text-muted">No attachments yet.</div>
         {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Keyboard Shortcuts Modal -->
+<div class="modal fade" id="shortcutsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Keyboard Shortcuts</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">Shortcuts apply on your Dashboard task list:</p>
+        <ul class="mb-0">
+          <li><strong>j</strong> or <strong>Arrow ↓</strong>: Focus next task</li>
+          <li><strong>k</strong> or <strong>Arrow ↑</strong>: Focus previous task</li>
+          <li><strong>Shift + Arrow ↑</strong>: Move task up (within milestone)</li>
+          <li><strong>Shift + Arrow ↓</strong>: Move task down (within milestone)</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <a class="btn btn-outline-primary" href="{% url 'dashboard' %}">Go to Dashboard</a>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
       </div>
     </div>
   </div>

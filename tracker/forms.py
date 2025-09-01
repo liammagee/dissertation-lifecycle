@@ -87,6 +87,10 @@ class SignupForm(UserCreationForm):
         return email
 
 
+class ResendActivationForm(forms.Form):
+    email = forms.EmailField()
+
+
 class WordLogForm(forms.ModelForm):
     class Meta:
         model = WordLog
