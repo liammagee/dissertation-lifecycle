@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from django import forms
+from django.conf import settings
 from .models import Project, Task, WordLog, Document, ProjectNote, Milestone
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 
 
 class ProjectCreateForm(forms.ModelForm):
@@ -54,6 +57,34 @@ class TaskCreateForm(forms.ModelForm):
         widgets = {
             'due_date': forms.DateInput(attrs={'type': 'date'})
         }
+
+
+class SignupForm(UserCreationForm):
+    email = forms.EmailField(required=True)
+    invite_code = forms.CharField(required=False, help_text="Enter invite code if required")
+
+    class Meta:
+        model = User
+        fields = ("username", "email", "password1", "password2", "invite_code")
+
+    def clean_invite_code(self):
+        code = (self.cleaned_data.get('invite_code') or '').strip()
+        expected = getattr(settings, 'SIGNUP_INVITE_CODE', '')
+        if expected and code != expected:
+            raise forms.ValidationError("Invalid invite code.")
+        return code
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip()
+        allowed = [d.strip().lower() for d in getattr(settings, 'SIGNUP_ALLOWED_EMAIL_DOMAINS', [])]
+        if allowed:
+            try:
+                domain = email.split('@', 1)[1].lower()
+            except Exception:
+                domain = ''
+            if domain not in allowed:
+                raise forms.ValidationError("Email domain not allowed.")
+        return email
 
 
 class WordLogForm(forms.ModelForm):

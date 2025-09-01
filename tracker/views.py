@@ -20,23 +20,75 @@ from .forms import (
     DocumentForm,
     DocumentNotesForm,
     ProjectNoteForm,
+    SignupForm,
 )
 from .models import Profile, Project, Task, Document, ProjectNote
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes
 from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent, compute_badges
 from .motivation import QUOTES
 
 
 def signup(request):
+    require_verify = getattr(settings, 'REQUIRE_EMAIL_VERIFICATION', False)
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = SignupForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user: User = form.save(commit=False)
+            user.email = form.cleaned_data['email']
+            if require_verify:
+                user.is_active = False
+            user.save()
             Profile.objects.create(user=user, role='student')
-            login(request, user)
-            return redirect('project_new')
+            if require_verify:
+                # Send activation email
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                try:
+                    from django.urls import reverse
+                    activate_url = request.build_absolute_uri(reverse('activate', args=[uid, token]))
+                except Exception:
+                    activate_url = f"/activate/{uid}/{token}/"
+                send_mail(
+                    subject='Activate your account',
+                    message=(
+                        'Welcome! Please activate your account by clicking the link below:\n\n'
+                        f'{activate_url}\n\n'
+                        'If you did not sign up, no action is needed.'
+                    ),
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                    recipient_list=[user.email],
+                    fail_silently=True,
+                )
+                messages.success(request, 'Check your email for an activation link to complete signup.')
+                return redirect('login')
+            else:
+                login(request, user)
+                return redirect('project_new')
     else:
-        form = UserCreationForm()
+        form = SignupForm()
     return render(request, 'tracker/signup.html', {'form': form})
+
+
+def activate(request, uidb64: str, token: str):
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=int(uid))
+    except Exception:
+        user = None
+    if user and default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save(update_fields=['is_active'])
+        messages.success(request, 'Your account has been activated. You can now use the app.')
+        try:
+            login(request, user)
+        except Exception:
+            pass
+        return redirect('project_new')
+    messages.error(request, 'Activation link is invalid or expired.')
+    return redirect('login')
 
 
 def home(request):

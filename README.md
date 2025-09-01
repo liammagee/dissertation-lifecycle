@@ -196,3 +196,10 @@ Schedule it with your preferred mechanism:
   - `ALLOWED_HOSTS=your.domain,other.domain`
   - `CSRF_TRUSTED_ORIGINS=https://your.domain,https://other.domain`
 - On Fly.io, defaults allow `*.fly.dev`. Set `FLY_APP_NAME` to your app for ALLOWED_HOSTS default.
+
+### Signup Controls & Verification
+
+- Invite code: set `SIGNUP_INVITE_CODE` to require a matching code at signup.
+- Allowed email domains: set `SIGNUP_ALLOWED_EMAIL_DOMAINS=university.edu,dept.edu` to restrict signups.
+- Email verification: set `REQUIRE_EMAIL_VERIFICATION=1` to require activation via emailed link.
+  - Ensure email backend/secrets are configured in production (`EMAIL_*` settings).
