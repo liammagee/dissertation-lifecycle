@@ -145,7 +145,13 @@ def project_new(request):
 
 @login_required
 def task_status(request, pk: int):
-    task = get_object_or_404(Task, pk=pk, project__student=request.user)
+    task = get_object_or_404(Task, pk=pk)
+    # Authorization: student owner or advisor/admin
+    owner_ok = (task.project and task.project.student_id == request.user.id)
+    role = getattr(getattr(request.user, 'profile', None), 'role', 'student')
+    advisor_ok = role in ('advisor', 'admin')
+    if not (owner_ok or advisor_ok):
+        return redirect('dashboard')
     if request.method == 'POST':
         form = TaskStatusForm(request.POST, instance=task)
         if form.is_valid():
@@ -161,7 +167,8 @@ def task_status(request, pk: int):
                 task.effort_pct = 0
                 task.combined_pct = 0
             if request.headers.get('HX-Request'):
-                return render(request, 'tracker/partials/task_row.html', {'task': task})
+                tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
+                return render(request, tpl, {'task': task})
             return redirect('dashboard')
     return redirect('dashboard')
 
@@ -327,7 +334,26 @@ def advisor_project(request, pk: int):
     if not profile or profile.role not in ('advisor', 'admin'):
         return redirect('dashboard')
     project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
-    tasks = project.tasks.select_related('milestone').all()
+    qs = project.tasks.select_related('milestone').all()
+    # Quick filters
+    status = request.GET.get('status')
+    if status in ('todo', 'doing', 'done'):
+        qs = qs.filter(status=status)
+    if request.GET.get('has_target') == '1':
+        qs = qs.filter(word_target__gt=0)
+    due_days = request.GET.get('due')
+    if due_days:
+        try:
+            from datetime import date, timedelta
+            d = int(due_days)
+            today = date.today()
+            latest = today + timedelta(days=max(0, d))
+            qs = qs.filter(due_date__gte=today, due_date__lte=latest)
+        except Exception:
+            pass
+    if request.GET.get('drafts') == '1':
+        qs = qs.filter(title__icontains='draft')
+    tasks = list(qs)
     notes = project.notes.select_related('author').all()
     docs = project.documents.select_related('task').order_by('-uploaded_at')
     from .models import FeedbackRequest, FeedbackComment
@@ -378,6 +404,11 @@ def advisor_project(request, pk: int):
         'docs': docs,
         'feedback': feedback,
         'badges': badges,
+        'status_filter': status or '',
+        'has_target': request.GET.get('has_target') == '1',
+        'due': due_days or '',
+        'drafts': request.GET.get('drafts') == '1',
+        'milestone_progress': milestone_progress,
     })
 
 
