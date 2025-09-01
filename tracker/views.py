@@ -155,6 +155,20 @@ def task_status(request, pk: int):
 
 
 @login_required
+def task_target(request, pk: int):
+    task = get_object_or_404(Task, pk=pk, project__student=request.user)
+    if request.method == 'POST':
+        try:
+            target = int(request.POST.get('word_target', '0'))
+        except Exception:
+            target = 0
+        task.word_target = max(0, target)
+        task.save()
+        messages.success(request, 'Updated target')
+    return redirect('dashboard')
+
+
+@login_required
 def task_detail(request, pk: int):
     task = get_object_or_404(Task.objects.select_related('template', 'milestone', 'project'), pk=pk, project__student=request.user)
     tpl = task.template
@@ -324,12 +338,14 @@ def advisor_project(request, pk: int):
                     )
                 return redirect('advisor_project', pk=pk)
     feedback = project.feedback_requests.prefetch_related('comments__author').all()
+    badges = compute_badges(project)
     return render(request, 'tracker/advisor_project.html', {
         'project': project,
         'tasks': tasks,
         'notes': notes,
         'docs': docs,
         'feedback': feedback,
+        'badges': badges,
     })
 
 
