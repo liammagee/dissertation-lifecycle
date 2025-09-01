@@ -11,6 +11,7 @@
     {% if task.status != 'done' %}
       <form method="post" action="{% url 'task_status' task.pk %}" class="d-inline">{% csrf_token %}
         <input type="hidden" name="status" value="done" />
+        {% if next_task %}<input type="hidden" name="next" value="{% url 'task_detail' next_task.pk %}">{% endif %}
         <button class="btn btn-sm btn-success me-1" type="submit">Mark Done</button>
       </form>
     {% endif %}
@@ -58,6 +59,11 @@
         {% endif %}
       </div>
     </div>
+    {% if next_task %}
+    <div class="mt-3">
+      <a class="btn btn-sm btn-outline-primary" href="{% url 'task_detail' next_task.pk %}">Next Task → {{ next_task.title }}</a>
+    </div>
+    {% endif %}
     <div class="card mt-3">
       <div class="card-header">Attachments</div>
       <div class="card-body">

@@ -21,6 +21,7 @@ from .forms import (
 )
 from .models import Profile, Project, Task, Document, ProjectNote
 from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent, compute_badges
+from .motivation import QUOTES
 
 
 def signup(request):
@@ -137,6 +138,13 @@ def dashboard(request):
             t.effort_pct = 0
             t.combined_pct = 0
     badges = compute_badges(project)
+    # Quote of the day (stable per user+date)
+    try:
+        from datetime import date
+        key = (request.user.id or 0) + date.today().toordinal()
+        quote = QUOTES[key % len(QUOTES)] if QUOTES else None
+    except Exception:
+        quote = None
     return render(request, 'tracker/dashboard.html', {
         'project': project,
         'tasks': tasks,
@@ -149,6 +157,7 @@ def dashboard(request):
         'w_status': w_status,
         'w_effort': w_effort,
         'badges': badges,
+        'quote': quote,
         # filters state
         'status_filter': status or '',
         'has_target': request.GET.get('has_target') == '1',
@@ -207,6 +216,9 @@ def task_status(request, pk: int):
             if request.headers.get('HX-Request'):
                 tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
                 return render(request, tpl, {'task': task})
+            nxt = request.POST.get('next') or ''
+            if nxt:
+                return redirect(nxt)
             return redirect('dashboard')
     return redirect('dashboard')
 
@@ -252,6 +264,17 @@ def task_detail(request, pk: int):
     docs = Document.objects.filter(project=task.project, task=task).order_by('-uploaded_at')
     up_form = DocumentForm()
     words_sum, target, effort_pct = task_effort(task)
+    # Compute next task (next todo/doing by milestone order, then task order)
+    next_task = None
+    try:
+        qn = Task.objects.filter(project=task.project, status__in=['todo', 'doing']).select_related('milestone').order_by('milestone__order', 'order', 'pk')
+        tasks_seq = list(qn)
+        for idx, t in enumerate(tasks_seq):
+            if t.pk == task.pk and idx + 1 < len(tasks_seq):
+                next_task = tasks_seq[idx + 1]
+                break
+    except Exception:
+        next_task = None
     return render(request, 'tracker/task_detail.html', {
         'task': task,
         'tpl': tpl,
@@ -260,6 +283,7 @@ def task_detail(request, pk: int):
         'words_sum': words_sum,
         'word_target': target,
         'effort_pct': effort_pct,
+        'next_task': next_task,
     })
 
 

@@ -2,6 +2,12 @@
 {% load vis %}
 {% block content %}
 <h2>{{ project.title }}</h2>
+{% if quote %}
+  <div class="alert alert-secondary py-2">
+    <em>“{{ quote.text }}”</em>
+    <span class="ms-2">— {{ quote.author }}</span>
+  </div>
+{% endif %}
 {% if badges %}
   <div class="mb-2">
     {% for b in badges %}
