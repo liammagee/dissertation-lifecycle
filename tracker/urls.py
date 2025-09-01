@@ -16,6 +16,7 @@ urlpatterns = [
     path('tasks/<int:pk>/target/', views.task_target, name='task_target'),
     path('tasks/<int:pk>/', views.task_detail, name='task_detail'),
     path('tasks/<int:pk>/edit/', views.task_edit, name='task_edit'),
+    path('tasks/<int:pk>/move/<str:direction>/', views.task_move, name='task_move'),
     path('tasks/new/', views.task_new, name='task_new'),
     path('tasks/<int:pk>/delete/', views.task_delete, name='task_delete'),
     path('tasks/<int:pk>/guidance/', views.task_guidance, name='task_guidance'),

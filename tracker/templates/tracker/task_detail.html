@@ -16,6 +16,7 @@
       </form>
     {% endif %}
     <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
+    <a class="btn btn-sm btn-outline-danger" href="{% url 'task_delete' task.pk %}">Delete</a>
   </div>
  </div>
 <p class="text-muted">Milestone: {{ task.milestone.name }} | Due: {{ task.due_date|default:'—' }} | Priority: {{ task.get_priority_display }} | Status: {{ task.get_status_display }}</p>

@@ -9,6 +9,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Count, Max
+from django.db import transaction
 from datetime import date, timedelta
 
 from .forms import (
@@ -139,6 +140,18 @@ def dashboard(request):
         except Exception:
             pass
     tasks = list(qs)
+    # Compute can-move flags per task (based on full milestone ordering)
+    by_milestone = {}
+    for t in project.tasks.select_related('milestone').order_by('milestone__order', 'order', 'pk'):
+        by_milestone.setdefault(t.milestone_id, []).append(t.pk)
+    pos = {}
+    for mid, ids in by_milestone.items():
+        for i, tid in enumerate(ids):
+            pos[tid] = (i, len(ids))
+    for t in tasks:
+        i, n = pos.get(t.pk, (0, 1))
+        t.can_move_up = (i > 0)
+        t.can_move_down = (i < n - 1)
     completion = project.completion_percent()
     # Read weights for combining status+effort and persist in session
     if 'update_weights' in request.GET:
@@ -455,6 +468,63 @@ def task_delete(request, pk: int):
         messages.success(request, 'Task deleted')
         return redirect('dashboard')
     return render(request, 'tracker/task_delete_confirm.html', {'task': task})
+
+
+@login_required
+def task_move(request, pk: int, direction: str):
+    # Owner-only reordering within the same milestone
+    task = get_object_or_404(Task.objects.select_related('milestone', 'project'), pk=pk, project__student=request.user)
+    if request.method != 'POST':
+        return redirect('dashboard')
+    if direction not in ('up', 'down'):
+        return redirect('dashboard')
+    # Renumber siblings to ensure unique sequential order, then swap with neighbor
+    with transaction.atomic():
+        siblings = list(
+            Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk')
+        )
+        for idx, s in enumerate(siblings, start=1):
+            if s.order != idx:
+                Task.objects.filter(pk=s.pk).update(order=idx)
+                s.order = idx
+        # refresh index for target task
+        ids = [s.pk for s in siblings]
+        try:
+            i = ids.index(task.pk)
+        except ValueError:
+            return redirect('dashboard')
+        j = i - 1 if direction == 'up' else i + 1
+        if j < 0 or j >= len(siblings):
+            # Nothing to do
+            pass
+        else:
+            a, b = siblings[i], siblings[j]
+            Task.objects.filter(pk=a.pk).update(order=b.order)
+            Task.objects.filter(pk=b.pk).update(order=a.order)
+            a.order, b.order = b.order, a.order
+    # For HTMX partial replacement
+    if request.headers.get('HX-Request'):
+        # Recompute badges/effect for this row
+        try:
+            w_status = request.session.get('w_status', 70)
+            w_effort = request.session.get('w_effort', 30)
+            weights = {'status': w_status, 'effort': w_effort}
+            task.refresh_from_db()
+            task.effort_pct = task_effort(task)[2]
+            task.combined_pct = task_combined_percent(task, weights)
+            # can_move flags after move
+            siblings = list(
+                Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk').values_list('pk', flat=True)
+            )
+            idx = siblings.index(task.pk)
+            task.can_move_up = idx > 0
+            task.can_move_down = idx < len(siblings) - 1
+        except Exception:
+            task.effort_pct = 0
+            task.combined_pct = 0
+            task.can_move_up = task.can_move_down = False
+        return render(request, 'tracker/partials/task_row.html', {'task': task})
+    return redirect('dashboard')
 
 
 @login_required
