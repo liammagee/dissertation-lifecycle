@@ -1,0 +1,41 @@
+{% load vis %}
+<tr id="task-{{ task.pk }}">
+  <td>{{ task.milestone.name }}</td>
+  <td>
+    <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+    <form method="post" action="{% url 'task_target' task.pk %}" class="d-inline ms-2" hx-post="{% url 'task_target' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
+      <span class="text-muted small">Target:</span>
+      <input name="word_target" type="number" min="0" value="{{ task.word_target|default:0 }}" class="form-control form-control-sm d-inline" style="width: 6.5rem; display:inline-block;" />
+      <button class="btn btn-sm btn-outline-secondary">Save</button>
+    </form>
+    {% if task.effort_pct >= 75 %}
+      <span class="badge text-bg-success">Effort {{ task.effort_pct }}%</span>
+    {% elif task.effort_pct >= 30 %}
+      <span class="badge text-bg-warning">Effort {{ task.effort_pct }}%</span>
+    {% else %}
+      <span class="badge text-bg-danger">Effort {{ task.effort_pct }}%</span>
+    {% endif %}
+    <span class="badge text-bg-light ms-1">Combined {{ task.combined_pct }}%</span>
+    {% if task.template %}
+      {% if task.template.guidance_tips or task.template.guidance_url %}
+        <button class="btn btn-sm btn-outline-secondary ms-2"
+                hx-get="{% url 'task_guidance' task.pk %}"
+                hx-target="#guidance-body"
+                hx-swap="innerHTML">
+          Guidance
+        </button>
+      {% endif %}
+    {% endif %}
+  </td>
+  <td>{{ task.due_date|default:'—' }}</td>
+  <td>
+    <form method="post" action="{% url 'task_status' task.pk %}" hx-post="{% url 'task_status' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
+      <select name="status" class="form-select form-select-sm" onchange="this.form.requestSubmit()">
+        <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
+        <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
+        <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
+      </select>
+    </form>
+  </td>
+</tr>
+

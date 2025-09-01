@@ -149,7 +149,19 @@ def task_status(request, pk: int):
     if request.method == 'POST':
         form = TaskStatusForm(request.POST, instance=task)
         if form.is_valid():
-            form.save()
+            task = form.save()
+            # Recompute effort/combined with weights from session for HTMX response
+            w_status = request.session.get('w_status', 70)
+            w_effort = request.session.get('w_effort', 30)
+            weights = {'status': w_status, 'effort': w_effort}
+            try:
+                task.effort_pct = task_effort(task)[2]
+                task.combined_pct = task_combined_percent(task, weights)
+            except Exception:
+                task.effort_pct = 0
+                task.combined_pct = 0
+            if request.headers.get('HX-Request'):
+                return render(request, 'tracker/partials/task_row.html', {'task': task})
             return redirect('dashboard')
     return redirect('dashboard')
 
@@ -164,6 +176,18 @@ def task_target(request, pk: int):
             target = 0
         task.word_target = max(0, target)
         task.save()
+        # Recompute to update badges if HTMX
+        w_status = request.session.get('w_status', 70)
+        w_effort = request.session.get('w_effort', 30)
+        weights = {'status': w_status, 'effort': w_effort}
+        try:
+            task.effort_pct = task_effort(task)[2]
+            task.combined_pct = task_combined_percent(task, weights)
+        except Exception:
+            task.effort_pct = 0
+            task.combined_pct = 0
+        if request.headers.get('HX-Request'):
+            return render(request, 'tracker/partials/task_row.html', {'task': task})
         messages.success(request, 'Updated target')
     return redirect('dashboard')
 
