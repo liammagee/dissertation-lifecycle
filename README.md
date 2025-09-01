@@ -175,7 +175,13 @@ make notify DUE=3 INACTIVE=5
   - `--backup-reminder` to send monthly backup emails to students (first days of month).
   - `--advisor-digest --digest-window-days 7` to email a weekly advisor digest.
 
-Schedule it with your preferred mechanism (e.g., a GitHub Actions workflow calling `fly ssh console -C "python manage.py notify ..."` on a cron, or an external scheduler hitting it via SSH).
+Schedule it with your preferred mechanism:
+- GitHub Actions: see `.github/workflows/notify.yml` (runs daily at 09:00 UTC by default)
+  - Set repository secret: `FLY_API_TOKEN`
+  - Set repository variable: `FLY_APP_NAME` (e.g., `dissertation-lifecycle`)
+  - Optional variables: `NOTIFY_DUE_DAYS`, `NOTIFY_INACTIVE_DAYS`, `NOTIFY_DIGEST_WINDOW_DAYS`
+  - You can also run it manually via the “Run workflow” UI with overrides.
+- Or any external scheduler that runs: `fly ssh console -C "python manage.py notify ..."`
 
 ### Backups
 
