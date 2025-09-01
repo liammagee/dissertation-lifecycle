@@ -40,6 +40,24 @@
         </div>
     </div>
     <div class="card mt-3">
+      <div class="card-header">Weekly totals (last 8 weeks)</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Week</th><th class="text-end">Words</th></tr></thead>
+          <tbody>
+            {% for w in weekly_totals %}
+              <tr>
+                <td>{{ w.start }} – {{ w.end }}</td>
+                <td class="text-end">{{ w.total }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="2" class="text-muted">No data yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card mt-3">
       <div class="card-header">All entries</div>
       <div class="card-body p-0">
         <table class="table table-sm mb-0">

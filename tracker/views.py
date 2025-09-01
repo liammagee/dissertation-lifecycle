@@ -9,6 +9,7 @@ from django.conf import settings
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import HttpResponse, JsonResponse
 from django.db.models import Count
+from datetime import date, timedelta
 
 from .forms import (
     ProjectCreateForm,
@@ -675,7 +676,6 @@ def wordlogs(request):
     form.fields['task'].queryset = project.tasks.select_related('milestone').order_by('milestone__order', 'order')
     logs = list(project.word_logs.order_by('-date'))
     current_streak, longest_streak = compute_streaks(project)
-    from datetime import date, timedelta
     today = date.today()
     last_days = [today - timedelta(days=i) for i in range(13, -1, -1)]
     by_date = {wl.date: wl.words for wl in logs}
@@ -688,6 +688,24 @@ def wordlogs(request):
         if maxv > 0:
             h = max(1, int(v / maxv * (chart_h - 4)))
         bars.append({'idx': idx, 'value': v, 'height': h, 'x': idx * 20, 'y': chart_h - h, 'date': last_days[idx]})
+    # Weekly totals (last 8 weeks, Monday-start)
+    def week_start(d: date) -> date:
+        return d - timedelta(days=d.weekday())
+    weeks = []
+    start_this_week = week_start(today)
+    for i in range(7, -1, -1):
+        ws = start_this_week - timedelta(weeks=i)
+        we = ws + timedelta(days=6)
+        weeks.append((ws, we))
+    logs_by_date = {wl.date: wl.words for wl in project.word_logs.order_by('date')}
+    weekly_totals = []
+    for ws, we in weeks:
+        total = 0
+        d = ws
+        while d <= we:
+            total += int(logs_by_date.get(d, 0) or 0)
+            d += timedelta(days=1)
+        weekly_totals.append({'start': ws, 'end': we, 'total': total})
     return render(request, 'tracker/wordlogs.html', {
         'project': project,
         'form': form,
@@ -698,6 +716,7 @@ def wordlogs(request):
         'spark_values': series,
         'spark_bars': bars,
         'spark_h': chart_h,
+        'weekly_totals': weekly_totals,
     })
 
 

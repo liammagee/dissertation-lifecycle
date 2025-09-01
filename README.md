@@ -152,3 +152,29 @@ Key URLs
 Storage on Fly.io
 - Use a Fly Volume mounted at `/data`; set `UPLOAD_ROOT=/data/uploads`.
 - Collect static in CI or at release: `python manage.py collectstatic --noinput` (optional if you later add static files)
+
+### Notifications & Scheduling
+
+- Send reminders locally:
+
+```
+python manage.py notify --due-days 3 --inactivity-days 5
+```
+
+- On Fly.io, use the Makefile target (runs inside the app VM):
+
+```
+make notify DUE=3 INACTIVE=5
+```
+
+- Options:
+  - `--backup-reminder` to send monthly backup emails to students (first days of month).
+  - `--advisor-digest --digest-window-days 7` to email a weekly advisor digest.
+
+Schedule it with your preferred mechanism (e.g., a GitHub Actions workflow calling `fly ssh console -C "python manage.py notify ..."` on a cron, or an external scheduler hitting it via SSH).
+
+### Backups
+
+- Students can download a ZIP of their data and attachments at `/export.zip` (after login).
+- Advisors can download per‑project ZIPs under `/advisor/projects/<id>/export.zip`.
+- Recommend scheduling monthly backup reminders via `python manage.py notify --backup-reminder`.
