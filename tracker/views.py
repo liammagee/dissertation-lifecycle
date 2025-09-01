@@ -200,15 +200,29 @@ def upload_document(request, pk: int):
         form = DocumentForm(request.POST, request.FILES)
         if form.is_valid():
             doc = form.save(commit=False)
-            doc.project = task.project
-            doc.task = task
             f = doc.file
-            doc.filename = getattr(f, 'name', '')
-            doc.size = getattr(f, 'size', 0) or 0
-            doc.content_type = getattr(getattr(f, 'file', None), 'content_type', '') or ''
-            doc.uploaded_by = request.user
-            doc.save()
-            messages.success(request, 'File uploaded')
+            # Basic validation
+            max_bytes = 10 * 1024 * 1024  # 10 MB
+            content_type = getattr(getattr(f, 'file', None), 'content_type', '') or ''
+            size = getattr(f, 'size', 0) or 0
+            allowed_types = (
+                'application/pdf', 'image/jpeg', 'image/png', 'image/gif',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'application/msword',
+            )
+            if size > max_bytes:
+                messages.error(request, 'File too large (max 10 MB).')
+            elif content_type and content_type not in allowed_types:
+                messages.error(request, 'Unsupported file type.')
+            else:
+                doc.project = task.project
+                doc.task = task
+                doc.filename = getattr(f, 'name', '')
+                doc.size = size
+                doc.content_type = content_type
+                doc.uploaded_by = request.user
+                doc.save()
+                messages.success(request, 'File uploaded')
     return redirect('task_detail', pk=task.pk)
 
 
@@ -249,7 +263,14 @@ def advisor_dashboard(request):
     profile = getattr(request.user, 'profile', None)
     if not profile or profile.role not in ('advisor', 'admin'):
         return redirect('dashboard')
-    projects = Project.objects.select_related('student').annotate(total_tasks=Count('tasks'))
+    projects = list(Project.objects.select_related('student').annotate(total_tasks=Count('tasks')))
+    for p in projects:
+        ts = list(p.tasks.select_related('milestone').all())
+        total = len(ts)
+        try:
+            p.combined_percent = int(round(sum(task_combined_percent(t) for t in ts) / total)) if total else 0
+        except Exception:
+            p.combined_percent = 0
     return render(request, 'tracker/advisor_dashboard.html', {'projects': projects})
 
 

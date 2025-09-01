@@ -7,9 +7,17 @@ from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task
 
 
 def apply_templates_to_project(project: Project, include_phd: bool = False, include_detailed: bool = False) -> None:
+    """Apply milestone/task templates to a project.
+    Safe to call multiple times: skips templates already applied.
+    """
     mts: Iterable[MilestoneTemplate] = (
         MilestoneTemplate.objects.all().order_by('order', 'id')
     )
+    # Track already-applied templates (by template id and by name as a fallback)
+    existing_tmpl_ids = set(
+        project.milestones.filter(template__isnull=False).values_list('template_id', flat=True)
+    )
+    existing_names = set(project.milestones.values_list('name', flat=True))
     order = 1
     for mt in mts:
         if mt.is_phd_only and not include_phd:
@@ -17,6 +25,9 @@ def apply_templates_to_project(project: Project, include_phd: bool = False, incl
         # Apply core milestones always; apply detailed ones only if requested
         is_core = str(mt.key).startswith('core-')
         if not is_core and not include_detailed and not mt.is_phd_only:
+            continue
+        # Skip if template already applied (or name already present)
+        if (mt.id in existing_tmpl_ids) or (mt.name in existing_names):
             continue
         milestone = Milestone.objects.create(
             project=project,

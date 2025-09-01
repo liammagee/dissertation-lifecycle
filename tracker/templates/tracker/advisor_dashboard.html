@@ -5,7 +5,7 @@
 <div class="text-muted small mb-2">Legend: Donut shows project completion percentage.</div>
 <table class="table table-sm align-middle">
   <thead>
-    <tr><th>Progress</th><th>Student</th><th>Project</th><th>Tasks</th><th>Completion</th></tr>
+    <tr><th>Progress</th><th>Student</th><th>Project</th><th>Tasks</th><th>Status %</th><th>Combined %</th></tr>
   </thead>
   <tbody>
     {% for p in projects %}
@@ -15,9 +15,10 @@
         <td><a href="{% url 'advisor_project' p.pk %}">{{ p.title }}</a></td>
         <td>{{ p.total_tasks }}</td>
         <td>{{ p.completion_percent }}%</td>
+        <td>{{ p.combined_percent|default:0 }}%</td>
       </tr>
     {% empty %}
-      <tr><td colspan="5" class="text-muted">No projects yet.</td></tr>
+      <tr><td colspan="6" class="text-muted">No projects yet.</td></tr>
     {% endfor %}
   </tbody>
   </table>
