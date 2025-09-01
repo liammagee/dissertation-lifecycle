@@ -142,6 +142,7 @@ class FeedbackRequest(models.Model):
     STATUS_CHOICES = (('open', 'Open'), ('resolved', 'Resolved'))
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='feedback_requests')
     task = models.ForeignKey(Task, null=True, blank=True, on_delete=models.SET_NULL)
+    document = models.ForeignKey('Document', null=True, blank=True, on_delete=models.SET_NULL)
     section = models.CharField(max_length=64, blank=True)
     note = models.TextField(blank=True)
     status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='open')

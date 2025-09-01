@@ -52,7 +52,38 @@ def dashboard(request):
     project = Project.objects.filter(student=request.user, status='active').first()
     if not project:
         return redirect('project_new')
-    tasks = list(project.tasks.select_related('milestone').all())
+    qs = project.tasks.select_related('milestone').all()
+    # Quick filters (student)
+    status = request.GET.get('status')
+    if status in ('todo', 'doing', 'done'):
+        qs = qs.filter(status=status)
+    if request.GET.get('has_target') == '1':
+        qs = qs.filter(word_target__gt=0)
+    due_days = request.GET.get('due')
+    if due_days:
+        try:
+            from datetime import date, timedelta
+            d = int(due_days)
+            today = date.today()
+            latest = today + timedelta(days=max(0, d))
+            qs = qs.filter(due_date__gte=today, due_date__lte=latest)
+        except Exception:
+            pass
+    if request.GET.get('drafts') == '1':
+        qs = qs.filter(title__icontains='draft')
+    milestone_id = request.GET.get('milestone')
+    if milestone_id:
+        try:
+            qs = qs.filter(milestone_id=int(milestone_id))
+        except Exception:
+            pass
+    milestone_id = request.GET.get('milestone')
+    if milestone_id:
+        try:
+            qs = qs.filter(milestone_id=int(milestone_id))
+        except Exception:
+            pass
+    tasks = list(qs)
     completion = project.completion_percent()
     # Read weights for combining status+effort and persist in session
     if 'update_weights' in request.GET:
@@ -118,6 +149,13 @@ def dashboard(request):
         'w_status': w_status,
         'w_effort': w_effort,
         'badges': badges,
+        # filters state
+        'status_filter': status or '',
+        'has_target': request.GET.get('has_target') == '1',
+        'due': due_days or '',
+        'drafts': request.GET.get('drafts') == '1',
+        'milestone_id': milestone_id or '',
+        'milestones': project.milestones.all(),
         # tasks now carry task.effort_pct
     })
 
@@ -356,12 +394,25 @@ def advisor_project(request, pk: int):
     tasks = list(qs)
     notes = project.notes.select_related('author').all()
     docs = project.documents.select_related('task').order_by('-uploaded_at')
-    from .models import FeedbackRequest, FeedbackComment
+    from .models import FeedbackRequest, FeedbackComment, Document
     if request.method == 'POST':
         if 'new_feedback' in request.POST:
             fr_note = request.POST.get('note', '').strip()
+            task_id = request.POST.get('task_id')
+            doc_id = request.POST.get('document_id')
             if fr_note:
-                FeedbackRequest.objects.create(project=project, note=fr_note)
+                fr = FeedbackRequest(project=project, note=fr_note)
+                if task_id:
+                    try:
+                        fr.task = project.tasks.get(pk=int(task_id))
+                    except Exception:
+                        pass
+                if doc_id:
+                    try:
+                        fr.document = Document.objects.get(pk=int(doc_id), project=project)
+                    except Exception:
+                        pass
+                fr.save()
                 messages.success(request, 'Feedback request created')
                 to = getattr(project.student, 'email', None)
                 if to:
@@ -409,6 +460,8 @@ def advisor_project(request, pk: int):
         'due': due_days or '',
         'drafts': request.GET.get('drafts') == '1',
         'milestone_progress': milestone_progress,
+        'milestone_id': milestone_id or '',
+        'milestones': project.milestones.all(),
     })
 
 
@@ -540,6 +593,14 @@ def wordlogs(request):
     last_days = [today - timedelta(days=i) for i in range(13, -1, -1)]
     by_date = {wl.date: wl.words for wl in logs}
     series = [by_date.get(d, 0) for d in last_days]
+    maxv = max(series) if series else 0
+    chart_h = 80
+    bars = []
+    for idx, v in enumerate(series):
+        h = 0
+        if maxv > 0:
+            h = max(1, int(v / maxv * (chart_h - 4)))
+        bars.append({'idx': idx, 'value': v, 'height': h, 'x': idx * 20, 'y': chart_h - h})
     return render(request, 'tracker/wordlogs.html', {
         'project': project,
         'form': form,
@@ -548,6 +609,8 @@ def wordlogs(request):
         'longest_streak': longest_streak,
         'spark_days': last_days,
         'spark_values': series,
+        'spark_bars': bars,
+        'spark_h': chart_h,
     })
 
 

@@ -24,8 +24,16 @@
     <div class="card">
       <div class="card-header">Last 14 days</div>
       <div class="card-body">
-        <div class="text-muted">(Chart placeholder) — shows bars for last 14 days.</div>
-      </div>
+        {% if spark_bars and spark_h %}
+          <svg width="100%" viewBox="0 0 {{ spark_bars|length|add:0|stringformat:'i'|add:0 }} {{ spark_h }}">
+            {% for b in spark_bars %}
+              <rect x="{{ b.x }}" y="{{ b.y }}" width="14" height="{{ b.height }}" fill="#0b6" />
+            {% endfor %}
+          </svg>
+        {% else %}
+          <div class="text-muted small">No recent logs.</div>
+        {% endif %}
+        </div>
     </div>
     <div class="card mt-3">
       <div class="card-header">All entries</div>
@@ -45,4 +53,3 @@
   </div>
 </div>
 {% endblock %}
-

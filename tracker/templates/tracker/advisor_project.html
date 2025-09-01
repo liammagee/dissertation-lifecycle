@@ -31,6 +31,15 @@
                 <option value="done" {% if status_filter == 'done' %}selected{% endif %}>Done</option>
               </select>
             </div>
+            <div class="col-auto">
+              <label class="form-label">Milestone</label>
+              <select name="milestone" class="form-select form-select-sm">
+                <option value="">All</option>
+                {% for m in milestones %}
+                  <option value="{{ m.id }}" {% if milestone_id|add:'' == m.id|add:'' %}selected{% endif %}>{{ m.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
             <div class="col-auto form-check mt-4">
               <input class="form-check-input" type="checkbox" id="f_has_target" name="has_target" value="1" {% if has_target %}checked{% endif %}>
               <label for="f_has_target" class="form-check-label">Has target</label>
@@ -142,6 +151,26 @@
         <form method="post">{% csrf_token %}
           <input type="hidden" name="new_feedback" value="1" />
           <div class="mb-2"><textarea class="form-control" name="note" rows="2" placeholder="Request feedback or leave a note to the student"></textarea></div>
+          <div class="row g-2 mb-2">
+            <div class="col-auto">
+              <label class="form-label">Task (optional)</label>
+              <select name="task_id" class="form-select form-select-sm">
+                <option value="">—</option>
+                {% for t in tasks %}
+                  <option value="{{ t.id }}">{{ t.milestone.name }} — {{ t.title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-auto">
+              <label class="form-label">Document (optional)</label>
+              <select name="document_id" class="form-select form-select-sm">
+                <option value="">—</option>
+                {% for d in docs %}
+                  <option value="{{ d.id }}">{{ d.filename }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
           <button class="btn btn-sm btn-primary" type="submit">Create request</button>
         </form>
         <hr>
