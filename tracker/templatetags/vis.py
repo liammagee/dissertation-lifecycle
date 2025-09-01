@@ -78,8 +78,14 @@ def radar(
             grid_rings.append(f'<circle cx="{cx}" cy="{cy}" r="{rr}" fill="none" stroke="#e9ecef" stroke-width="1" />')
 
     points_svg = []
-    for (x, y) in coords:
-        points_svg.append(f'<circle cx="{x}" cy="{y}" r="4" fill="#198754" />')
+    # Glow timing: each point gets an animation delay proportional to its angle.
+    # One full rotation takes `speed` seconds, so delay = frac * speed.
+    for i, (x, y) in enumerate(coords):
+        frac = (i / max(1, n))  # 0..1 starting at 12 o'clock
+        delay = max(0.0, float(speed)) * frac
+        points_svg.append(
+            f'<circle class="pt" cx="{x}" cy="{y}" r="4" fill="#198754" style="animation-delay: {delay:.3f}s;" />'
+        )
 
     labels_svg = []
     if show_labels:
@@ -109,8 +115,15 @@ def radar(
       </svg>
     </div>
     <style>
-      @keyframes radar-spin {{ from {{ transform: rotate(0deg); }} to {{ transform: rotate(360deg); }} }}
-      .radar .sweep {{ animation: radar-spin {max(1,int(speed))}s linear infinite; }}
+      @keyframes radar-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      .radar .sweep { animation: radar-spin {max(1,int(speed))}s linear infinite; }
+      @keyframes radar-glow {
+        0%   { filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }
+        3%   { filter: drop-shadow(0 0 10px rgba(25,135,84,0.9)); r:5.5; }
+        8%   { filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }
+        100% { filter: drop-shadow(0 0 0px rgba(25,135,84,0)); r:4; }
+      }
+      .radar .pt { animation: radar-glow {max(1,int(speed))}s linear infinite; }
     </style>
     """
     return mark_safe(svg)

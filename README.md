@@ -146,8 +146,12 @@ Key URLs
 - `/dashboard` student dashboard (tasks and completion)
 - `/advisor` advisor dashboard (simple list of projects)
 - Advisor exports: `/advisor/export.json`, `/advisor/export.csv`
+- Advisor per‑project logs CSV: `/advisor/projects/<id>/wordlogs.csv`
+  - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
 - `/admin/` Django admin (manage templates, tasks, etc.)
 - Task detail/edit: `/tasks/<id>/` and `/tasks/<id>/edit/`
+- Writing logs CSV (student): `/writing/export.csv`
+  - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
 
 Storage on Fly.io
 - Use a Fly Volume mounted at `/data`; set `UPLOAD_ROOT=/data/uploads`.

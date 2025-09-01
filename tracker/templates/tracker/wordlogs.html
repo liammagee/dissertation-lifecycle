@@ -22,7 +22,27 @@
   </div>
   <div class="col-md-7">
     <div class="card">
-      <div class="card-header">Last 14 days</div>
+      <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>Last 14 days</span>
+        <form method="get" action="{% url 'wordlogs_csv' %}" class="d-flex align-items-center gap-2">
+          <input type="date" name="start" class="form-control form-control-sm" placeholder="Start" value="{{ export_filters.start }}">
+          <input type="date" name="end" class="form-control form-control-sm" placeholder="End" value="{{ export_filters.end }}">
+          <select name="milestone" class="form-select form-select-sm">
+            <option value="">All milestones</option>
+            {% for m in milestones %}
+              <option value="{{ m.id }}" {% if export_filters.milestone|add:'' == m.id|add:'' %}selected{% endif %}>{{ m.name }}</option>
+            {% endfor %}
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Export CSV</button>
+        </form>
+        <form method="get" action="{% url 'wordlogs' %}">
+          <input type="hidden" name="clear_export" value="1">
+          <button class="btn btn-sm btn-link text-decoration-none" type="submit">Clear</button>
+        </form>
+        <div class="w-100 text-muted small mt-1">
+          Tip: set optional start/end dates (YYYY-MM-DD) and/or milestone to filter the CSV export.
+        </div>
+      </div>
       <div class="card-body">
         {% if spark_bars and spark_h %}
           <svg width="100%" viewBox="0 0 {{ spark_bars|length|add:0|stringformat:'i'|add:0 }} {{ spark_h }}">

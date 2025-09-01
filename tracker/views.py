@@ -460,6 +460,16 @@ def advisor_project(request, pk: int):
     if not profile or profile.role not in ('advisor', 'admin'):
         return redirect('dashboard')
     project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
+    # Clear saved export filters for this project
+    if request.GET.get('clear_export'):
+        try:
+            store = request.session.get('advisor_logs_export', {})
+            key = f'p{pk}'
+            if key in store:
+                del store[key]
+                request.session['advisor_logs_export'] = store
+        except Exception:
+            pass
     qs = project.tasks.select_related('milestone').all()
     # Quick filters
     status = request.GET.get('status')
@@ -479,6 +489,13 @@ def advisor_project(request, pk: int):
             pass
     if request.GET.get('drafts') == '1':
         qs = qs.filter(title__icontains='draft')
+    # Milestone filter for task table
+    milestone_id = request.GET.get('milestone')
+    if milestone_id:
+        try:
+            qs = qs.filter(milestone_id=int(milestone_id))
+        except Exception:
+            pass
     tasks = list(qs)
     notes = project.notes.select_related('author').all()
     docs = project.documents.select_related('task').order_by('-uploaded_at')
@@ -534,8 +551,23 @@ def advisor_project(request, pk: int):
                         fail_silently=True,
                     )
                 return redirect('advisor_project', pk=pk)
+    # Per-milestone progress summary
+    milestones = project.milestones.prefetch_related('tasks').all()
+    milestone_progress = []
+    for m in milestones:
+        ts = list(m.tasks.all())
+        total = len(ts)
+        done = sum(1 for t in ts if t.status == 'done')
+        if total:
+            avg = int(round(sum(task_combined_percent(t) for t in ts) / total))
+        else:
+            avg = 0
+        milestone_progress.append({'m': m, 'percent': avg, 'total': total, 'done': done})
+
     feedback = project.feedback_requests.prefetch_related('comments__author').all()
     badges = compute_badges(project)
+    # Persisted export filters for this project
+    export_filters = (request.session.get('advisor_logs_export', {}) or {}).get(f'p{pk}', {})
     return render(request, 'tracker/advisor_project.html', {
         'project': project,
         'tasks': tasks,
@@ -549,7 +581,8 @@ def advisor_project(request, pk: int):
         'drafts': request.GET.get('drafts') == '1',
         'milestone_progress': milestone_progress,
         'milestone_id': milestone_id or '',
-        'milestones': project.milestones.all(),
+        'milestones': milestones,
+        'export_filters': export_filters,
     })
 
 
@@ -717,7 +750,120 @@ def wordlogs(request):
         'spark_bars': bars,
         'spark_h': chart_h,
         'weekly_totals': weekly_totals,
+        'milestones': project.milestones.order_by('order').all(),
+        'export_filters': request.session.get('logs_export', {}),
     })
+
+
+@login_required
+def wordlogs_csv(request):
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return redirect('project_new')
+    import csv
+    # Optional filters: start, end (YYYY-MM-DD), milestone (id)
+    start_s = (request.GET.get('start') or '').strip()
+    end_s = (request.GET.get('end') or '').strip()
+    ms_id = (request.GET.get('milestone') or '').strip()
+    start_d = end_d = None
+    try:
+        if start_s:
+            start_d = date.fromisoformat(start_s)
+    except Exception:
+        start_d = None
+    try:
+        if end_s:
+            end_d = date.fromisoformat(end_s)
+    except Exception:
+        end_d = None
+    # Save last used filters for UI defaults
+    try:
+        request.session['logs_export'] = {'start': start_s, 'end': end_s, 'milestone': ms_id}
+    except Exception:
+        pass
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename="writing_logs.csv"'
+    w = csv.writer(resp)
+    w.writerow(['date', 'words', 'note', 'task_id', 'task', 'milestone'])
+    qs = project.word_logs.select_related('task', 'task__milestone').order_by('date').all()
+    if start_d:
+        qs = qs.filter(date__gte=start_d)
+    if end_d:
+        qs = qs.filter(date__lte=end_d)
+    if ms_id:
+        try:
+            qs = qs.filter(task__milestone_id=int(ms_id))
+        except Exception:
+            pass
+    for wl in qs:
+        task_title = wl.task.title if wl.task else ''
+        milestone_name = wl.task.milestone.name if wl.task and wl.task.milestone else ''
+        w.writerow([
+            wl.date.isoformat(),
+            wl.words,
+            wl.note,
+            wl.task_id or '',
+            task_title,
+            milestone_name,
+        ])
+    return resp
+
+
+@login_required
+def advisor_project_wordlogs_csv(request, pk: int):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
+    # Optional filters: start, end (YYYY-MM-DD), milestone (id)
+    start_s = (request.GET.get('start') or '').strip()
+    end_s = (request.GET.get('end') or '').strip()
+    ms_id = (request.GET.get('milestone') or '').strip()
+    start_d = end_d = None
+    try:
+        if start_s:
+            start_d = date.fromisoformat(start_s)
+    except Exception:
+        start_d = None
+    try:
+        if end_s:
+            end_d = date.fromisoformat(end_s)
+    except Exception:
+        end_d = None
+    # Save last used filters for this project for UI defaults
+    try:
+        store = request.session.get('advisor_logs_export', {})
+        store[f'p{pk}'] = {'start': start_s, 'end': end_s, 'milestone': ms_id}
+        request.session['advisor_logs_export'] = store
+    except Exception:
+        pass
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = f'attachment; filename="project_{project.id}_wordlogs.csv"'
+    w = csv.writer(resp)
+    w.writerow(['date', 'words', 'note', 'task_id', 'task', 'milestone'])
+    qs = project.word_logs.select_related('task', 'task__milestone').order_by('date').all()
+    if start_d:
+        qs = qs.filter(date__gte=start_d)
+    if end_d:
+        qs = qs.filter(date__lte=end_d)
+    if ms_id:
+        try:
+            qs = qs.filter(task__milestone_id=int(ms_id))
+        except Exception:
+            pass
+    for wl in qs:
+        task_title = wl.task.title if wl.task else ''
+        milestone_name = wl.task.milestone.name if wl.task and wl.task.milestone else ''
+        w.writerow([
+            wl.date.isoformat(),
+            wl.words,
+            wl.note,
+            wl.task_id or '',
+            task_title,
+            milestone_name,
+        ])
+    return resp
 
 
 @login_required
