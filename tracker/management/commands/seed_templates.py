@@ -278,15 +278,61 @@ class Command(BaseCommand):
             TaskTemplate.objects.filter(milestone=mt).delete()
             t_order = 1
             for title in m["tasks"]:
-                TaskTemplate.objects.create(
+                # Support either plain title strings or dicts with tips/urls
+                if isinstance(title, dict):
+                    t_title = title.get("title", "")
+                    tips = title.get("tips", "")
+                    url = title.get("url", "")
+                else:
+                    t_title = str(title)
+                    tips = ""
+                    url = ""
+                tt = TaskTemplate.objects.create(
                     milestone=mt,
                     key=f"t{t_order}",
-                    title=title,
+                    title=t_title,
                     description="",
                     order=t_order,
+                    guidance_tips=tips,
+                    guidance_url=url,
                 )
                 created_tasks += 1
                 t_order += 1
+
+                # Heuristic guidance population for common key tasks if not provided
+                if not tt.guidance_tips:
+                    lower = (tt.title or '').lower()
+                    if 'irb' in lower:
+                        tt.guidance_tips = (
+                            "Confirm your methodology, instruments, and consent forms. "
+                            "Build in approval lead time (2–6 weeks). Coordinate storage and anonymization."
+                        )
+                    elif 'download dissertation template' in lower or 'template' in lower:
+                        tt.guidance_tips = (
+                            "Review required formatting (margins, headings, citations). "
+                            "Adopt the template early to avoid rework."
+                        )
+                    elif 'write lit review introduction' in lower:
+                        tt.guidance_tips = (
+                            "Frame scope and structure. Preview key themes and how sources are grouped."
+                        )
+                    elif 'start general field writing' in lower or 'start special field writing' in lower:
+                        tt.guidance_tips = (
+                            "Synthesize (don’t summarize). Group by themes, debates, and gaps; tie to your questions."
+                        )
+                    elif 'methodology selection' in lower or 'begin writing chapter 3' in lower or 'draft methodology' in lower:
+                        tt.guidance_tips = (
+                            "Justify your method with theory and context. Describe participants, procedures, ethics, and analysis plan."
+                        )
+                    elif 'proposal oral presentation' in lower or 'present findings' in lower:
+                        tt.guidance_tips = (
+                            "Aim for 10–12 content slides. Lead with research question, method, and 2–4 key findings. Time yourself."
+                        )
+                    elif 'goal –' in lower or 'goal' in lower:
+                        tt.guidance_tips = (
+                            "Use the word target to plan sprints. Draft first; refine structure after you have content."
+                        )
+                    tt.save(update_fields=["guidance_tips"])  # type: ignore[arg-type]
 
         self.stdout.write(self.style.SUCCESS(
             f"Seeded milestones (new: {created_ms}) and tasks (total: {created_tasks})."

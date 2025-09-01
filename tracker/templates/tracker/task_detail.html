@@ -7,7 +7,15 @@
       <span class="text-muted small ms-2">Target: {{ task.word_target }} words</span>
     {% endif %}
   </h2>
-  <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
+  <div>
+    {% if task.status != 'done' %}
+      <form method="post" action="{% url 'task_status' task.pk %}" class="d-inline">{% csrf_token %}
+        <input type="hidden" name="status" value="done" />
+        <button class="btn btn-sm btn-success me-1" type="submit">Mark Done</button>
+      </form>
+    {% endif %}
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'task_edit' task.pk %}">Edit</a>
+  </div>
  </div>
 <p class="text-muted">Milestone: {{ task.milestone.name }} | Due: {{ task.due_date|default:'—' }} | Priority: {{ task.get_priority_display }} | Status: {{ task.get_status_display }}</p>
 {% if word_target and effort_pct >= 100 and task.status != 'done' %}

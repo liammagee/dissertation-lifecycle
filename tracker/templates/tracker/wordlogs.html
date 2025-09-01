@@ -26,10 +26,14 @@
       <div class="card-body">
         {% if spark_bars and spark_h %}
           <svg width="100%" viewBox="0 0 {{ spark_bars|length|add:0|stringformat:'i'|add:0 }} {{ spark_h }}">
+            <line x1="0" y1="{{ spark_h }}" x2="{{ spark_bars|length|add:0|stringformat:'i'|add:0 }}" y2="{{ spark_h }}" stroke="#e9ecef" />
             {% for b in spark_bars %}
-              <rect x="{{ b.x }}" y="{{ b.y }}" width="14" height="{{ b.height }}" fill="#0b6" />
+              <rect x="{{ b.x }}" y="{{ b.y }}" width="14" height="{{ b.height }}" fill="#0b6">
+                <title>{{ b.date }}: {{ b.value }} words</title>
+              </rect>
             {% endfor %}
           </svg>
+          <div class="text-muted small">Last 14 days — hover bars for exact counts.</div>
         {% else %}
           <div class="text-muted small">No recent logs.</div>
         {% endif %}

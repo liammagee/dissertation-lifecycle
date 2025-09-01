@@ -17,6 +17,7 @@
         <span>
           <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_json' project.pk %}">Export JSON</a>
           <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_csv' project.pk %}">Export CSV</a>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_zip' project.pk %}">Export ZIP</a>
         </span>
       </div>
       <div class="card-body p-0">
@@ -57,6 +58,7 @@
             </div>
           </div>
         </form>
+        <div class="px-2 pb-2"><a class="small" href="{% url "advisor_project" project.pk %}">Clear filters</a></div>
         <table class="table table-sm mb-0">
           <thead><tr><th>Milestone</th><th>Task</th><th>Status</th></tr></thead>
           <tbody>

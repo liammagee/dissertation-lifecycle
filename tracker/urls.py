@@ -20,6 +20,8 @@ urlpatterns = [
     path('documents/<int:pk>/delete/', views.delete_document, name='delete_document'),
     path('documents/<int:pk>/edit/', views.edit_document, name='edit_document'),
     path('writing/', views.wordlogs, name='wordlogs'),
+    path('feedback/', views.feedback, name='feedback'),
+    path('export.zip', views.my_export_zip, name='my_export_zip'),
     path('notes/', views.project_notes, name='project_notes'),
     path('notes/<int:pk>/edit/', views.project_note_edit, name='project_note_edit'),
     path('notes/<int:pk>/delete/', views.project_note_delete, name='project_note_delete'),
@@ -27,6 +29,7 @@ urlpatterns = [
     path('advisor/projects/<int:pk>/', views.advisor_project, name='advisor_project'),
     path('advisor/projects/<int:pk>/export.json', views.advisor_project_export_json, name='advisor_project_export_json'),
     path('advisor/projects/<int:pk>/export.csv', views.advisor_project_export_csv, name='advisor_project_export_csv'),
+    path('advisor/projects/<int:pk>/export.zip', views.advisor_project_export_zip, name='advisor_project_export_zip'),
     path('advisor/export.json', views.advisor_export_json, name='advisor_export_json'),
     path('advisor/export.csv', views.advisor_export_csv, name='advisor_export_csv'),
 ]

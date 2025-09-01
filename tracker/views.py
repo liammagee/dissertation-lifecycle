@@ -264,6 +264,69 @@ def task_detail(request, pk: int):
 
 
 @login_required
+def feedback(request):
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return redirect('project_new')
+    # existing feedback requests
+    from .models import FeedbackRequest, Document as Doc
+    feedback_qs = project.feedback_requests.prefetch_related('comments__author', 'task', 'document').order_by('-created_at')
+    tasks = list(project.tasks.select_related('milestone').all())
+    docs = list(project.documents.order_by('-uploaded_at').all())
+    if request.method == 'POST':
+        note = (request.POST.get('note') or '').strip()
+        task_id = request.POST.get('task_id')
+        doc_id = request.POST.get('document_id')
+        if note:
+            fr = FeedbackRequest(project=project, note=note)
+            if task_id:
+                try:
+                    fr.task = project.tasks.get(pk=int(task_id))
+                except Exception:
+                    pass
+            if doc_id:
+                try:
+                    fr.document = Doc.objects.get(pk=int(doc_id), project=project)
+                except Exception:
+                    pass
+            fr.save()
+            messages.success(request, 'Feedback request sent to advisors')
+            # Email advisors and admins
+            advisor_emails = list(
+                Profile.objects.filter(role__in=['advisor', 'admin'], user__email__isnull=False)
+                .exclude(user__email='')
+                .values_list('user__email', flat=True)
+            )
+            if advisor_emails:
+                details = []
+                if fr.task:
+                    details.append(f"Task: {fr.task.title}")
+                if fr.document:
+                    details.append(f"Document: {fr.document.filename}")
+                extra = ("\n" + "\n".join(details)) if details else ""
+                send_mail(
+                    subject=f"Student feedback request – {project.title}",
+                    message=(
+                        f"Student {request.user.get_username()} requested feedback on '{project.title}'.\n\n"
+                        f"Message:\n{note}{extra}\n\n"
+                        "Advisor dashboard: /advisor\n"
+                    ),
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@example.com'),
+                    recipient_list=advisor_emails,
+                    fail_silently=True,
+                )
+            return redirect('feedback')
+        else:
+            messages.error(request, 'Please include a note for your feedback request.')
+    return render(request, 'tracker/feedback.html', {
+        'project': project,
+        'tasks': tasks,
+        'docs': docs,
+        'feedback': feedback_qs,
+    })
+
+
+@login_required
 def task_edit(request, pk: int):
     task = get_object_or_404(Task, pk=pk, project__student=request.user)
     if request.method == 'POST':
@@ -600,7 +663,7 @@ def wordlogs(request):
         h = 0
         if maxv > 0:
             h = max(1, int(v / maxv * (chart_h - 4)))
-        bars.append({'idx': idx, 'value': v, 'height': h, 'x': idx * 20, 'y': chart_h - h})
+        bars.append({'idx': idx, 'value': v, 'height': h, 'x': idx * 20, 'y': chart_h - h, 'date': last_days[idx]})
     return render(request, 'tracker/wordlogs.html', {
         'project': project,
         'form': form,
@@ -667,3 +730,100 @@ def project_note_delete(request, pk: int):
 def healthz(request):
     """Lightweight health check endpoint for Fly.io."""
     return JsonResponse({"status": "ok"})
+
+
+@login_required
+def advisor_project_export_zip(request, pk: int):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import io, zipfile, csv, json, os
+    project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        tasks = list(project.tasks.select_related('milestone').all())
+        tasks_json = [
+            {
+                'id': t.id,
+                'milestone': t.milestone.name if t.milestone else None,
+                'title': t.title,
+                'status': t.status,
+                'priority': t.priority,
+                'word_target': t.word_target,
+                'due_date': t.due_date.isoformat() if t.due_date else None,
+            }
+            for t in tasks
+        ]
+        zf.writestr('tasks.json', json.dumps(tasks_json, indent=2))
+        csv_buf = io.StringIO(); w = csv.writer(csv_buf)
+        w.writerow(['task_id','milestone','title','status','priority','word_target','due_date'])
+        for t in tasks:
+            w.writerow([t.id, t.milestone.name if t.milestone else '', t.title, t.status, t.priority, t.word_target, t.due_date.isoformat() if t.due_date else ''])
+        zf.writestr('tasks.csv', csv_buf.getvalue())
+        logs = list(project.word_logs.order_by('date').all())
+        logs_json = [{'date': wl.date.isoformat(), 'words': wl.words, 'note': wl.note} for wl in logs]
+        zf.writestr('logs.json', json.dumps(logs_json, indent=2))
+        csv_buf = io.StringIO(); w = csv.writer(csv_buf)
+        w.writerow(['date','words','note'])
+        for wl in logs:
+            w.writerow([wl.date.isoformat(), wl.words, wl.note])
+        zf.writestr('logs.csv', csv_buf.getvalue())
+        for d in project.documents.all():
+            try:
+                if d.file:
+                    with d.file.open('rb') as fp:
+                        safe_name = f"{d.id}_{os.path.basename(d.filename)}"
+                        zf.writestr(f"attachments/{safe_name}", fp.read())
+            except Exception:
+                continue
+    resp = HttpResponse(buf.getvalue(), content_type='application/zip')
+    resp['Content-Disposition'] = f'attachment; filename="project_{project.id}_export.zip"'
+    return resp
+
+
+@login_required
+def my_export_zip(request):
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return redirect('project_new')
+    import io, zipfile, csv, json, os
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        tasks = list(project.tasks.select_related('milestone').all())
+        tasks_json = [
+            {
+                'id': t.id,
+                'milestone': t.milestone.name if t.milestone else None,
+                'title': t.title,
+                'status': t.status,
+                'priority': t.priority,
+                'word_target': t.word_target,
+                'due_date': t.due_date.isoformat() if t.due_date else None,
+            }
+            for t in tasks
+        ]
+        zf.writestr('tasks.json', json.dumps(tasks_json, indent=2))
+        csv_buf = io.StringIO(); w = csv.writer(csv_buf)
+        w.writerow(['task_id','milestone','title','status','priority','word_target','due_date'])
+        for t in tasks:
+            w.writerow([t.id, t.milestone.name if t.milestone else '', t.title, t.status, t.priority, t.word_target, t.due_date.isoformat() if t.due_date else ''])
+        zf.writestr('tasks.csv', csv_buf.getvalue())
+        logs = list(project.word_logs.order_by('date').all())
+        logs_json = [{'date': wl.date.isoformat(), 'words': wl.words, 'note': wl.note} for wl in logs]
+        zf.writestr('logs.json', json.dumps(logs_json, indent=2))
+        csv_buf = io.StringIO(); w = csv.writer(csv_buf)
+        w.writerow(['date','words','note'])
+        for wl in logs:
+            w.writerow([wl.date.isoformat(), wl.words, wl.note])
+        zf.writestr('logs.csv', csv_buf.getvalue())
+        for d in project.documents.all():
+            try:
+                if d.file:
+                    with d.file.open('rb') as fp:
+                        safe_name = f"{d.id}_{os.path.basename(d.filename)}"
+                        zf.writestr(f"attachments/{safe_name}", fp.read())
+            except Exception:
+                continue
+    resp = HttpResponse(buf.getvalue(), content_type='application/zip')
+    resp['Content-Disposition'] = f'attachment; filename="my_project_export.zip"'
+    return resp

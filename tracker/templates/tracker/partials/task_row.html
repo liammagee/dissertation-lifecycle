@@ -3,6 +3,17 @@
   <td>{{ task.milestone.name }}</td>
   <td>
     <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
+    {% if task.status != 'done' %}
+      <form method="post" action="{% url 'task_status' task.pk %}" class="d-inline ms-2"
+            hx-post="{% url 'task_status' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
+        <input type="hidden" name="status" value="done" />
+        <label class="form-check-label small">
+          <input type="checkbox" class="form-check-input" onchange="this.form.requestSubmit()"> Done
+        </label>
+      </form>
+    {% else %}
+      <span class="badge text-bg-success ms-2">Done</span>
+    {% endif %}
     <form method="post" action="{% url 'task_target' task.pk %}" class="d-inline ms-2" hx-post="{% url 'task_target' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
       <span class="text-muted small">Target:</span>
       <input name="word_target" type="number" min="0" value="{{ task.word_target|default:0 }}" class="form-control form-control-sm d-inline" style="width: 6.5rem; display:inline-block;" />
@@ -38,4 +49,3 @@
     </form>
   </td>
 </tr>
-
