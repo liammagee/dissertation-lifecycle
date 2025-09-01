@@ -168,7 +168,13 @@ def task_status(request, pk: int):
 
 @login_required
 def task_target(request, pk: int):
-    task = get_object_or_404(Task, pk=pk, project__student=request.user)
+    task = get_object_or_404(Task, pk=pk)
+    # Authorization: student owner or advisor/admin
+    owner_ok = (task.project and task.project.student_id == request.user.id)
+    role = getattr(getattr(request.user, 'profile', None), 'role', 'student')
+    advisor_ok = role in ('advisor', 'admin')
+    if not (owner_ok or advisor_ok):
+        return redirect('dashboard')
     if request.method == 'POST':
         try:
             target = int(request.POST.get('word_target', '0'))
@@ -187,7 +193,9 @@ def task_target(request, pk: int):
             task.effort_pct = 0
             task.combined_pct = 0
         if request.headers.get('HX-Request'):
-            return render(request, 'tracker/partials/task_row.html', {'task': task})
+            # Choose partial based on viewer
+            tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
+            return render(request, tpl, {'task': task})
         messages.success(request, 'Updated target')
     return redirect('dashboard')
 
