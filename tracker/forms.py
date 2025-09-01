@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from django import forms
-from .models import Project, Task, WordLog, Document, ProjectNote
+from .models import Project, Task, WordLog, Document, ProjectNote, Milestone
 
 
 class ProjectCreateForm(forms.ModelForm):
@@ -41,6 +41,16 @@ class TaskForm(forms.ModelForm):
     class Meta:
         model = Task
         fields = ['title', 'description', 'user_notes', 'word_target', 'due_date', 'priority', 'status']
+        widgets = {
+            'due_date': forms.DateInput(attrs={'type': 'date'})
+        }
+
+
+class TaskCreateForm(forms.ModelForm):
+    milestone = forms.ModelChoiceField(queryset=Milestone.objects.none())
+    class Meta:
+        model = Task
+        fields = ['milestone', 'title', 'description', 'word_target', 'due_date', 'priority']
         widgets = {
             'due_date': forms.DateInput(attrs={'type': 'date'})
         }

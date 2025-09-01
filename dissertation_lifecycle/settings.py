@@ -7,10 +7,21 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', '1') == '1'
-# ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
-ALLOWED_HOSTS = ["*"]
-# ALLOWED_HOSTS = ["dissertation-lifecycle.fly.dev", ".fly.dev", "localhost"]
-CSRF_TRUSTED_ORIGINS = ["https://dissertation-lifecycle.fly.dev"]
+
+# Hosts and CSRF
+if DEBUG:
+    ALLOWED_HOSTS = ["*"]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '').split(',') if h.strip()]
+    if not ALLOWED_HOSTS:
+        # Safe fallback for Fly: allow app domain if provided
+        fly_app = os.getenv('FLY_APP_NAME', 'dissertation-lifecycle')
+        ALLOWED_HOSTS = [f"{fly_app}.fly.dev", ".fly.dev"]
+
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+if not CSRF_TRUSTED_ORIGINS:
+    # Common Fly origin (update via env for custom domains)
+    CSRF_TRUSTED_ORIGINS = ["https://*.fly.dev"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -114,3 +125,13 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', '1') == '1'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', '0') == '1'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@example.com')
+
+# Security in production
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', '1') == '1'
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', '86400'))  # 1 day default
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', '1') == '1'
+    SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', '0') == '1'
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

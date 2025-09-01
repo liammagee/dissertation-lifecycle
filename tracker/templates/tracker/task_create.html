@@ -1,0 +1,10 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>New Task</h2>
+<form method="post">{% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary" type="submit">Create</button>
+  <a class="btn btn-outline-secondary" href="{% url 'dashboard' %}">Cancel</a>
+</form>
+{% endblock %}
+

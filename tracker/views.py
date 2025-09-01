@@ -15,6 +15,7 @@ from .forms import (
     ProjectCreateForm,
     TaskStatusForm,
     TaskForm,
+    TaskCreateForm,
     WordLogForm,
     DocumentForm,
     DocumentNotesForm,
@@ -363,6 +364,44 @@ def task_edit(request, pk: int):
     else:
         form = TaskForm(instance=task)
     return render(request, 'tracker/task_form.html', {'form': form, 'task': task})
+
+
+@login_required
+def task_new(request):
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return redirect('project_new')
+    if request.method == 'POST':
+        form = TaskCreateForm(request.POST)
+        # Limit milestone choices to this project
+        form.fields['milestone'].queryset = project.milestones.order_by('order')
+        if form.is_valid():
+            t = form.save(commit=False)
+            t.project = project
+            t.status = 'todo'
+            # Best-effort ordering: append at end of chosen milestone
+            try:
+                max_order = int(project.tasks.filter(milestone=t.milestone).aggregate(m=models.Max('order'))['order__max'] or 0)
+            except Exception:
+                max_order = 0
+            t.order = max_order + 1
+            t.save()
+            messages.success(request, 'Task created')
+            return redirect('dashboard')
+    else:
+        form = TaskCreateForm()
+        form.fields['milestone'].queryset = project.milestones.order_by('order')
+    return render(request, 'tracker/task_create.html', {'form': form, 'project': project})
+
+
+@login_required
+def task_delete(request, pk: int):
+    task = get_object_or_404(Task, pk=pk, project__student=request.user)
+    if request.method == 'POST':
+        task.delete()
+        messages.success(request, 'Task deleted')
+        return redirect('dashboard')
+    return render(request, 'tracker/task_delete_confirm.html', {'task': task})
 
 
 @login_required

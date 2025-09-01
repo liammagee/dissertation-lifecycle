@@ -182,3 +182,11 @@ Schedule it with your preferred mechanism (e.g., a GitHub Actions workflow calli
 - Students can download a ZIP of their data and attachments at `/export.zip` (after login).
 - Advisors can download per‑project ZIPs under `/advisor/projects/<id>/export.zip`.
 - Recommend scheduling monthly backup reminders via `python manage.py notify --backup-reminder`.
+
+### Security & Environment
+
+- In production (`DEBUG=0`), security flags are enabled: HTTPS redirect, secure cookies, HSTS, and proxy SSL header.
+- Configure hosts and CSRF via env:
+  - `ALLOWED_HOSTS=your.domain,other.domain`
+  - `CSRF_TRUSTED_ORIGINS=https://your.domain,https://other.domain`
+- On Fly.io, defaults allow `*.fly.dev`. Set `FLY_APP_NAME` to your app for ALLOWED_HOSTS default.
