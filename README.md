@@ -205,3 +205,13 @@ Schedule it with your preferred mechanism:
 - Allowed email domains: set `SIGNUP_ALLOWED_EMAIL_DOMAINS=university.edu,dept.edu` to restrict signups.
 - Email verification: set `REQUIRE_EMAIL_VERIFICATION=1` to require activation via emailed link.
   - Ensure email backend/secrets are configured in production (`EMAIL_*` settings).
+### Uploads & Storage
+
+- Local storage (default): uploads stored under `UPLOAD_ROOT` (defaults to `uploads/` or `/data/uploads` on Fly volume).
+- Upload policy (override via env):
+  - `UPLOAD_MAX_BYTES` (default `10485760` for 10 MB)
+  - `UPLOAD_ALLOWED_TYPES` (comma‑separated MIME types; default includes pdf, images, doc/docx)
+- S3 storage (optional): set `S3_ENABLED=1` and provide:
+  - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`
+  - Optional: `AWS_S3_REGION_NAME`, `AWS_S3_ENDPOINT_URL`, `AWS_S3_SIGNATURE_VERSION`, `AWS_S3_CUSTOM_DOMAIN`, `AWS_QUERYSTRING_AUTH=1`
+  - This switches `DEFAULT_FILE_STORAGE` to S3 via `django-storages`.

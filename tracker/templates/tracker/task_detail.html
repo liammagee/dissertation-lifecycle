@@ -73,6 +73,10 @@
           <div class="mb-2">{{ upload_form.file }} {{ upload_form.notes }}</div>
           <button class="btn btn-sm btn-primary" type="submit">Upload</button>
         </form>
+        <div class="text-muted small mt-1">
+          Allowed types: {{ settings.UPLOAD_ALLOWED_TYPES|default:"pdf, images, docx, doc" }}.
+          Max size: {{ settings.UPLOAD_MAX_BYTES|default:10485760 }} bytes.
+        </div>
         <hr>
         {% if docs %}
           <ul class="list-unstyled">

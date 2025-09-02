@@ -587,17 +587,13 @@ def upload_document(request, pk: int):
             doc = form.save(commit=False)
             f = doc.file
             # Basic validation
-            max_bytes = 10 * 1024 * 1024  # 10 MB
+            max_bytes = getattr(settings, 'UPLOAD_MAX_BYTES', 10 * 1024 * 1024)
             content_type = getattr(getattr(f, 'file', None), 'content_type', '') or ''
             size = getattr(f, 'size', 0) or 0
-            allowed_types = (
-                'application/pdf', 'image/jpeg', 'image/png', 'image/gif',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'application/msword',
-            )
+            allowed_types = tuple(getattr(settings, 'UPLOAD_ALLOWED_TYPES', []))
             if size > max_bytes:
                 messages.error(request, 'File too large (max 10 MB).')
-            elif content_type and content_type not in allowed_types:
+            elif content_type and allowed_types and content_type not in allowed_types:
                 messages.error(request, 'Unsupported file type.')
             else:
                 doc.project = task.project

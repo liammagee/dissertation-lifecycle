@@ -42,6 +42,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'tracker.middleware.RequestLogMiddleware',
 ]
 
 ROOT_URLCONF = 'dissertation_lifecycle.urls'
@@ -107,6 +108,16 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.getenv('UPLOAD_ROOT', str(BASE_DIR / 'uploads'))
 
+# Upload policy (can be overridden via env)
+UPLOAD_MAX_BYTES = int(os.getenv('UPLOAD_MAX_BYTES', str(10 * 1024 * 1024)))  # default 10 MB
+_default_types = ','.join([
+    'application/pdf',
+    'image/jpeg', 'image/png', 'image/gif',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword',
+])
+UPLOAD_ALLOWED_TYPES = [t.strip() for t in os.getenv('UPLOAD_ALLOWED_TYPES', _default_types).split(',') if t.strip()]
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
@@ -135,3 +146,51 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', '1') == '1'
     SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', '0') == '1'
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# Optional Sentry error monitoring
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+        from sentry_sdk.integrations.django import DjangoIntegration
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            integrations=[DjangoIntegration()],
+            traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.0')),
+            send_default_pii=os.getenv('SENTRY_SEND_PII', '0') == '1',
+        )
+    except Exception:
+        # Fail open if Sentry isn't installed or initialization fails
+        pass
+
+# Basic logging to stdout
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': os.getenv('LOG_LEVEL', 'INFO'),
+    },
+}
+
+# Optional S3 storage for media uploads (instead of local volume)
+if os.getenv('S3_ENABLED', '0') == '1':
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+    AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
+    AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', '')
+    AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', '') or None
+    AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', '') or None
+    AWS_S3_SIGNATURE_VERSION = os.getenv('AWS_S3_SIGNATURE_VERSION', '') or None
+    AWS_S3_FILE_OVERWRITE = False
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = os.getenv('AWS_QUERYSTRING_AUTH', '0') == '1'
+    # If custom domain provided, update MEDIA_URL
+    _custom_domain = os.getenv('AWS_S3_CUSTOM_DOMAIN', '')
+    if _custom_domain:
+        MEDIA_URL = f"https://{_custom_domain}/"
