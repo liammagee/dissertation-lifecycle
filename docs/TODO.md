@@ -13,7 +13,7 @@ Legend: [ ] pending, [~] in progress, [x] done
    - [x] Apply templates to create tasks/milestones
 
 3. Tasks & Guidance
-   - [ ] Task CRUD (title, description, due date, priority, status) — create/delete later; edit/status exists
+   - [x] Task CRUD (title, description, due date, priority, status)
    - [x] Guidance popups + links per task
    - [x] Progress logic (checkbox complete; next‑task link on detail)
 

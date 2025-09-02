@@ -35,6 +35,4 @@ primary_region = "den"
 
 [deploy]
   # Run DB migrations (and optionally seed idempotent templates) on each deploy
-  # release_command = "python manage.py migrate && python manage.py seed_templates --verbosity 0 || true"
-  # 
-  release_command = "python manage.py migrate"
+  release_command = "python manage.py migrate && python manage.py seed_templates --verbosity 0 || true"

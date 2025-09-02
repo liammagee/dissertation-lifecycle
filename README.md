@@ -199,6 +199,71 @@ Schedule it with your preferred mechanism:
   - `CSRF_TRUSTED_ORIGINS=https://your.domain,https://other.domain`
 - On Fly.io, defaults allow `*.fly.dev`. Set `FLY_APP_NAME` to your app for ALLOWED_HOSTS default.
 
+## Production Deploy (Fly.io)
+
+Quick checklist
+- Fly app: created and `fly.toml` present (`app` name matches).
+- Volume: create a volume named `data` and mount at `/data` (uploads).
+- Secrets: set production env (see below, minimal list included).
+- Database: decide SQLite (single machine) or Postgres (`DATABASE_URL`).
+- Deploy: `fly deploy` and let `release_command` run migrations + seed templates.
+- Bootstrap: create an advisor user to log in.
+
+Create volume
+```
+fly volumes create data --size 1 --region den -a dissertation-lifecycle
+```
+
+Minimal secrets (copy/paste and edit)
+```
+fly secrets set \
+  SECRET_KEY=$(openssl rand -hex 32) \
+  DEBUG=0 \
+  FLY_APP_NAME=dissertation-lifecycle \
+  ALLOWED_HOSTS=dissertation-lifecycle.fly.dev \
+  CSRF_TRUSTED_ORIGINS=https://dissertation-lifecycle.fly.dev \
+  DEFAULT_FROM_EMAIL=no-reply@example.com
+```
+
+Email (SMTP) — required for password reset/notifications
+```
+fly secrets set \
+  EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend \
+  EMAIL_HOST=smtp.example.com \
+  EMAIL_PORT=587 \
+  EMAIL_HOST_USER=apikey-or-user \
+  EMAIL_HOST_PASSWORD=secret \
+  EMAIL_USE_TLS=1
+```
+
+Optional signup controls
+```
+fly secrets set SIGNUP_INVITE_CODE=letmein REQUIRE_EMAIL_VERIFICATION=1 \
+  SIGNUP_ALLOWED_EMAIL_DOMAINS=university.edu,dept.edu
+```
+
+Database options
+- SQLite (default): fine for a single VM and light use. Data lives on the Fly volume.
+- Postgres: provision a Fly Postgres cluster and set `DATABASE_URL`.
+
+Example Postgres secret
+```
+fly secrets set DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME
+```
+
+Deploy and bootstrap
+```
+make deploy          # or: fly deploy
+make migrate         # not needed if using release_command
+USERNAME=advisor PASSWORD=changeme EMAIL=advisor@example.com make advisor
+```
+
+Scheduled notifications (GitHub Actions)
+- Repo secret: `FLY_API_TOKEN`
+- Repo variable: `FLY_APP_NAME` (e.g., dissertation-lifecycle)
+- Optional repo variables: `NOTIFY_DUE_DAYS`, `NOTIFY_INACTIVE_DAYS`, `NOTIFY_DIGEST_WINDOW_DAYS`
+The workflow `.github/workflows/notify.yml` runs daily at 09:00 UTC or on demand.
+
 ### Signup Controls & Verification
 
 - Invite code: set `SIGNUP_INVITE_CODE` to require a matching code at signup.
