@@ -1,4 +1,4 @@
-.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify
+.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite
 
 help:
 	@echo "Common tasks:"
@@ -11,6 +11,8 @@ help:
 	@echo "  make admin         # create superuser (env vars required)"
 	@echo "  make advisor       # create advisor user"
 	@echo "  make notify        # run notifications command"
+	@echo "  make secrets-pg    # set Fly secrets (Postgres + SMTP)"
+	@echo "  make secrets-sqlite# set Fly secrets (SQLite + SMTP)"
 
 deploy:
 	fly deploy
@@ -42,3 +44,15 @@ advisor:
 notify:
 	fly ssh console -C "python manage.py notify --due-days $${DUE:-3} --inactivity-days $${INACTIVE:-5}"
 
+# Usage (Postgres):
+#   EMAIL_HOST=smtp.example.com EMAIL_HOST_USER=apikey EMAIL_HOST_PASSWORD=secret \
+#   DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME \
+#   FLY_APP_NAME=dissertation-lifecycle make secrets-pg
+secrets-pg:
+	./scripts/fly-secrets-postgres.sh
+
+# Usage (SQLite):
+#   EMAIL_HOST=smtp.example.com EMAIL_HOST_USER=apikey EMAIL_HOST_PASSWORD=secret \
+#   FLY_APP_NAME=dissertation-lifecycle make secrets-sqlite
+secrets-sqlite:
+	./scripts/fly-secrets-sqlite.sh

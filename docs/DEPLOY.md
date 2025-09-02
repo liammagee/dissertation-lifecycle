@@ -40,6 +40,16 @@ fly secrets set \
   EMAIL_USE_TLS=1
 ```
 
+Single one-liner (Postgres + SMTP)
+
+```
+fly secrets set SECRET_KEY=$(openssl rand -hex 32) DEBUG=0 FLY_APP_NAME=dissertation-lifecycle ALLOWED_HOSTS=dissertation-lifecycle.fly.dev CSRF_TRUSTED_ORIGINS=https://dissertation-lifecycle.fly.dev DEFAULT_FROM_EMAIL=no-reply@example.com EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend EMAIL_HOST=smtp.example.com EMAIL_PORT=587 EMAIL_HOST_USER=YOUR_SMTP_USER EMAIL_HOST_PASSWORD=YOUR_SMTP_PASSWORD EMAIL_USE_TLS=1 DATABASE_URL=postgres://USER:PASSWORD@HOST:5432/DBNAME
+```
+
+Note: replace SMTP and Postgres placeholders before running. If you stay on SQLite, omit the `DATABASE_URL` pair.
+
+Tip: See `.env.deploy.example` for a ready‑to‑edit template of all relevant variables (SMTP, Postgres/SQLite, optional signup controls, S3, Sentry).
+
 Signup controls (optional):
 
 ```
@@ -90,4 +100,3 @@ The workflow `.github/workflows/notify.yml` runs daily at 09:00 UTC and can be t
 - Open the app URL shown after deploy (e.g., `https://dissertation-lifecycle.fly.dev`).
 - Check `/healthz` returns `ok`.
 - Login, create project, upload test file, and export ZIP.
-
