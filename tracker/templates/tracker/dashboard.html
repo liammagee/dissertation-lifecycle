@@ -15,27 +15,6 @@
     {% endfor %}
   </div>
 {% endif %}
-<form method="get" class="row g-2 align-items-end mb-3">
-  <div class="col-auto">
-    <label for="w_status" class="form-label">Status weight (%)</label>
-    <input type="number" min="0" class="form-control" id="w_status" name="w_status" value="{{ w_status|default:70 }}">
-  </div>
-  <div class="col-auto">
-    <label for="w_effort" class="form-label">Effort weight (%)</label>
-    <input type="number" min="0" class="form-control" id="w_effort" name="w_effort" value="{{ w_effort|default:30 }}">
-  </div>
-  <div class="col-auto">
-    <input type="hidden" name="update_weights" value="1" />
-    <button class="btn btn-outline-primary" type="submit">Update weighting</button>
-  </div>
-</form>
-<div class="text-muted small mb-3">
-  Effort badge colors: <span class="badge text-bg-danger">&lt;30%</span>,
-  <span class="badge text-bg-warning">30–74%</span>,
-  <span class="badge text-bg-success">≥75%</span>.
-  Milestone % uses combined(Status {{ w_status|default:70 }}%, Effort {{ w_effort|default:30 }}%).
-  Adjust weights above to favor status completion vs writing effort.
-</div>
 <div class="mb-3 d-flex align-items-center gap-3">
   <div>{% donut completion 120 14 %}</div>
   <div>
@@ -124,6 +103,29 @@
   </div>
  </form>
  <div class="mb-2"><a class="small" href="{% url "dashboard" %}">Clear filters</a></div>
+
+<!-- Weighting controls just above the task list -->
+<form method="get" class="row g-2 align-items-end mb-2">
+  <div class="col-auto">
+    <label for="w_status" class="form-label">Status weight (%)
+      <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much the task’s status contributes (To Do=0, Doing=50, Done=100).">i</span>
+    </label>
+    <input type="number" min="0" class="form-control" id="w_status" name="w_status" value="{{ w_status|default:70 }}">
+  </div>
+  <div class="col-auto">
+    <label for="w_effort" class="form-label">Effort weight (%)
+      <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much writing effort contributes (words logged ÷ word target, capped at 100%).">i</span>
+    </label>
+    <input type="number" min="0" class="form-control" id="w_effort" name="w_effort" value="{{ w_effort|default:30 }}">
+  </div>
+  <div class="col-auto">
+    <input type="hidden" name="update_weights" value="1" />
+    <button class="btn btn-outline-primary" type="submit">Update weighting</button>
+  </div>
+</form>
+<div class="text-muted small mb-3">
+  Status weight: how much the task’s status contributes (To&nbsp;Do=0, Doing=50, Done=100). Effort weight: how much writing effort contributes (words logged ÷ word target, capped at 100%). Combined = weighted average normalized by their sum. Milestone % is the average of task Combined values. Effort badge colors: <span class="badge text-bg-danger">&lt;30%</span>, <span class="badge text-bg-warning">30–74%</span>, <span class="badge text-bg-success">≥75%</span>.
+</div>
 
 <table class="table table-sm align-middle">
   <thead>
