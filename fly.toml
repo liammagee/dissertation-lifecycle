@@ -34,5 +34,6 @@ primary_region = "den"
   memory = "1024mb"
 
 [deploy]
-  # Run DB migrations (and optionally seed idempotent templates) on each deploy
-  release_command = "python manage.py migrate && python manage.py seed_templates --verbosity 0 || true"
+  # Migrations now run on boot in bin/entrypoint.sh so they execute against the
+  # real machine with volumes mounted. Keep release_command as a no-op.
+  release_command = "sh -lc 'echo release-noop'"

@@ -17,6 +17,9 @@ else:
         # Safe fallback for Fly: allow app domain if provided
         fly_app = os.getenv('FLY_APP_NAME', 'dissertation-lifecycle')
         ALLOWED_HOSTS = [f"{fly_app}.fly.dev", ".fly.dev"]
+    # Allow internal health checks from Fly machines (IP hosts). You can disable by setting ALLOW_ALL_HOSTS=0
+    if os.getenv('ALLOW_ALL_HOSTS', '1') == '1' and '*' not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append('*')
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
 if not CSRF_TRUSTED_ORIGINS:
@@ -81,12 +84,21 @@ def parse_database_url(url: str) -> dict:
         }
     raise ValueError('Unsupported DATABASE_URL scheme')
 
-DATABASES = {
-    'default': parse_database_url(os.environ['DATABASE_URL']) if os.getenv('DATABASE_URL') else {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.getenv('DATABASE_URL'):
+    DATABASES = {
+        'default': parse_database_url(os.environ['DATABASE_URL'])
     }
-}
+else:
+    # Prefer volume path for SQLite in containers so migrations done in release_command persist
+    sqlite_path = os.getenv('SQLITE_PATH')
+    if not sqlite_path:
+        sqlite_path = '/data/db.sqlite3' if os.path.isdir('/data') else str(BASE_DIR / 'db.sqlite3')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': sqlite_path,
+        }
+    }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -146,6 +158,9 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS', '1') == '1'
     SECURE_HSTS_PRELOAD = os.getenv('SECURE_HSTS_PRELOAD', '0') == '1'
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    # Allow Fly's internal HTTP health check to pass without HTTPS redirect
+    # (SecurityMiddleware respects SECURE_REDIRECT_EXEMPT regexes.)
+    SECURE_REDIRECT_EXEMPT = [r'^healthz$']
 
 # Optional Sentry error monitoring
 SENTRY_DSN = os.getenv('SENTRY_DSN', '')
