@@ -1,4 +1,4 @@
-.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite
+.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite samples
 
 help:
 	@echo "Common tasks:"
@@ -13,6 +13,7 @@ help:
 	@echo "  make notify        # run notifications command"
 	@echo "  make secrets-pg    # set Fly secrets (Postgres + SMTP)"
 	@echo "  make secrets-sqlite# set Fly secrets (SQLite + SMTP)"
+	@echo "  make samples       # create sample admin/advisor/student (+project/logs) on Fly"
 
 deploy:
 	fly deploy
@@ -56,3 +57,7 @@ secrets-pg:
 #   FLY_APP_NAME=dissertation-lifecycle make secrets-sqlite
 secrets-sqlite:
 	./scripts/fly-secrets-sqlite.sh
+
+# Create sample users/data in the Fly app
+samples:
+	fly ssh console -C "python manage.py create_samples"

@@ -256,6 +256,7 @@ Deploy and bootstrap
 make deploy          # or: fly deploy
 make migrate         # not needed if using release_command
 USERNAME=advisor PASSWORD=changeme EMAIL=advisor@example.com make advisor
+fly ssh console -C "python manage.py create_samples"   # optional: admin/advisor/student + sample project/logs
 ```
 
 Scheduled notifications (GitHub Actions)
