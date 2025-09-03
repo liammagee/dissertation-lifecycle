@@ -31,6 +31,9 @@
         <a class="btn btn-sm btn-outline-danger" href="{% url 'task_delete' task.pk %}" title="Delete task" data-bs-toggle="tooltip">
           <i class="bi bi-trash"></i><span class="visually-hidden"> Delete</span>
         </a>
+        <a class="btn btn-sm btn-outline-primary" href="{% url 'wordlogs' %}?task={{ task.pk }}#log-form" title="Log words" data-bs-toggle="tooltip">
+          <i class="bi bi-journal-plus"></i><span class="visually-hidden"> Log words</span>
+        </a>
         {% if task.status != 'done' %}
           <form method="post" action="{% url 'task_status' task.pk %}" class="d-inline ms-1"
                 hx-post="{% url 'task_status' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML" hx-indicator="#tsk-{{ task.pk }}-spin">{% csrf_token %}

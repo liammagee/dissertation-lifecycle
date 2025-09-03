@@ -954,6 +954,14 @@ def wordlogs(request):
             return redirect('wordlogs')
     else:
         form = WordLogForm()
+        # Preselect a task from query param for convenience
+        tid = (request.GET.get('task') or '').strip()
+        if tid:
+            try:
+                t = project.tasks.get(pk=int(tid))
+                form.fields['task'].initial = t.pk
+            except Exception:
+                pass
     # Limit task choices to this project
     form.fields['task'].queryset = project.tasks.select_related('milestone').order_by('milestone__order', 'order')
     logs = list(project.word_logs.order_by('-date'))
