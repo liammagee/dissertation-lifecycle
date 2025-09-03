@@ -65,7 +65,7 @@
   <div class="text-muted small mt-2">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
 </div>
 
-<form method="get" class="mb-2">
+<form method="get" class="mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
   <div class="row g-2 align-items-end">
     <div class="col-auto">
       <label class="form-label">Status</label>
@@ -105,7 +105,11 @@
  <div class="mb-2"><a class="small" href="{% url "dashboard" %}">Clear filters</a></div>
 
 <!-- Weighting controls just above the task list -->
-<form method="get" class="row g-2 align-items-end mb-2">
+<div class="d-flex align-items-center justify-content-end mb-1">
+  <div id="tasks-spinner" class="spinner-border spinner-border-sm text-secondary" role="status" style="display:none"><span class="visually-hidden">Loading…</span></div>
+</div>
+<div id="tasks-section">
+<form method="get" class="row g-2 align-items-end mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
   <div class="col-auto">
     <label for="w_status" class="form-label">Status weight (%)
       <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much the task’s status contributes (To Do=0, Doing=50, Done=100).">i</span>
@@ -145,6 +149,7 @@
     After a move, focus stays on the task so you can keep adjusting quickly.
   </span>
   <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#shortcutsModal">? Shortcuts</button>
+</div>
 </div>
 
 <!-- Keyboard Shortcuts Modal -->
@@ -201,10 +206,14 @@
         var form2 = tr2.querySelector('form.move-down'); if (form2){ e.preventDefault(); form2.requestSubmit(); }
       }
     });
-    // Keep focus on the moved row after HTMX swap
+    // Keep focus on the moved row after HTMX swap and flash it
     document.body.addEventListener('htmx:afterSwap', function(evt){
       var t = evt.target; if (!t || !t.id) return;
-      if (t.matches && t.matches('tr.task-row')){ t.focus(); }
+      if (t.matches && t.matches('tr.task-row')){
+        t.focus();
+        t.classList.add('flash');
+        setTimeout(function(){ t.classList.remove('flash'); }, 650);
+      }
     });
   })();
   </script>

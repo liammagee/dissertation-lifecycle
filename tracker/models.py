@@ -134,7 +134,7 @@ class WordLog(models.Model):
     note = models.CharField(max_length=255, blank=True)
 
     class Meta:
-        unique_together = [('project', 'date')]
+        unique_together = [('project', 'date', 'task')]
         ordering = ['-date']
 
 

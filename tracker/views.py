@@ -361,9 +361,12 @@ def task_target(request, pk: int):
             task.effort_pct = 0
             task.combined_pct = 0
         if request.headers.get('HX-Request'):
-            # Choose partial based on viewer
+            # Choose partial based on viewer and flag as just saved (for UI pulse)
             tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
-            return render(request, tpl, {'task': task})
+            ctx = {'task': task, 'just_saved': True}
+            if request.POST.get('explicit'):
+                ctx['toast_message'] = 'Target saved'
+            return render(request, tpl, ctx)
         messages.success(request, 'Updated target')
     return redirect('dashboard')
 
