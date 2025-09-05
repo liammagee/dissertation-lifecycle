@@ -12,7 +12,7 @@
     <select class="form-select form-select-sm" name="sort">
       <option value="student" {% if sort == 'student' %}selected{% endif %}>Student</option>
       <option value="title" {% if sort == 'title' %}selected{% endif %}>Title</option>
-      <option value="combined" {% if sort == 'combined' %}selected{% endif %}>Combined %</option>
+      {% if show_effort %}<option value="combined" {% if sort == 'combined' %}selected{% endif %}>Combined %</option>{% endif %}
       <option value="status" {% if sort == 'status' %}selected{% endif %}>Status %</option>
       <option value="tasks" {% if sort == 'tasks' %}selected{% endif %}>Tasks</option>
     </select>
@@ -28,7 +28,7 @@
 <div class="text-muted small mb-2">Legend: Donut shows project completion percentage.</div>
 <table class="table table-sm align-middle">
   <thead>
-    <tr><th>Progress</th><th>Student</th><th>Project</th><th>Tasks</th><th>Status %</th><th>Combined %</th></tr>
+    <tr><th>Progress</th><th>Student</th><th>Project</th><th>Tasks</th><th>Status %</th>{% if show_effort %}<th>Combined %</th>{% endif %}</tr>
   </thead>
   <tbody>
     {% for p in projects %}
@@ -38,7 +38,7 @@
         <td><a href="{% url 'advisor_project' p.pk %}">{{ p.title }}</a></td>
         <td>{{ p.total_tasks }}</td>
         <td>{{ p.completion_percent }}%</td>
-        <td>{{ p.combined_percent|default:0 }}%</td>
+        {% if show_effort %}<td>{{ p.combined_percent|default:0 }}%</td>{% endif %}
       </tr>
     {% empty %}
       <tr><td colspan="6" class="text-muted">No projects yet.</td></tr>

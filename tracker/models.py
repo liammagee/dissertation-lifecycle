@@ -188,3 +188,29 @@ class Notification(models.Model):
     payload = models.JSONField(default=dict, blank=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
+
+
+class AppSettings(models.Model):
+    """Global app settings editable in the admin.
+
+    We use this to control weighting between status and effort for progress.
+    Default hides effort in the UI by setting effort_weight=0.
+    """
+    status_weight = models.PositiveIntegerField(default=100)
+    effort_weight = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "App Settings"
+        verbose_name_plural = "App Settings"
+
+    def __str__(self) -> str:
+        return f"Settings (status={self.status_weight}%, effort={self.effort_weight}%)"
+
+    @classmethod
+    def get(cls) -> "AppSettings":
+        obj = cls.objects.first()
+        if obj:
+            return obj
+        # Create with defaults on first access
+        return cls.objects.create()

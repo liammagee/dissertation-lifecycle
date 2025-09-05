@@ -57,6 +57,13 @@
         {% endif %}
         <li class="nav-item"><a class="nav-link" href="{% url 'feedback' %}">Feedback</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'project_notes' %}">Notes</a></li>
+        {% if user.profile and (user.profile.role == 'advisor' or user.profile.role == 'admin') %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'advisor_dashboard' %}">Advisor</a></li>
+        {% endif %}
+        {% if user.is_staff or (user.profile and user.profile.role == 'admin') %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+        <li class="nav-item"><a class="nav-link" href="/admin/tracker/appsettings/">Settings</a></li>
+        {% endif %}
         <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
         {% else %}
         <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>

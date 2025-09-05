@@ -1,4 +1,17 @@
 from django.contrib import admin
+from .models import AppSettings
+
+
+@admin.register(AppSettings)
+class AppSettingsAdmin(admin.ModelAdmin):
+    list_display = ("status_weight", "effort_weight", "updated_at")
+
+    def has_add_permission(self, request):
+        # Allow only one settings row
+        from .models import AppSettings as S
+        if S.objects.count() >= 1:
+            return False
+        return super().has_add_permission(request)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from . import models

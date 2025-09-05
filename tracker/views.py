@@ -29,7 +29,14 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
-from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent, compute_badges
+from .services import (
+    apply_templates_to_project,
+    compute_streaks,
+    task_effort,
+    task_combined_percent,
+    compute_badges,
+    get_progress_weights,
+)
 from .motivation import QUOTES
 
 
@@ -197,22 +204,9 @@ def dashboard(request):
         t.can_move_up = (i > 0)
         t.can_move_down = (i < n - 1)
     completion = project.completion_percent()
-    # Read weights for combining status+effort and persist in session
-    if 'update_weights' in request.GET:
-        try:
-            w_status = max(0, int(request.GET.get('w_status', '70')))
-        except Exception:
-            w_status = 70
-        try:
-            w_effort = max(0, int(request.GET.get('w_effort', '30')))
-        except Exception:
-            w_effort = 30
-        request.session['w_status'] = w_status
-        request.session['w_effort'] = w_effort
-    else:
-        w_status = request.session.get('w_status', 70)
-        w_effort = request.session.get('w_effort', 30)
-    weights = {'status': w_status, 'effort': w_effort}
+    # Use global weights from admin settings (not per-student)
+    weights = get_progress_weights()
+    show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
     # Per-milestone progress
     milestones = project.milestones.prefetch_related('tasks').all()
     milestone_progress = []
@@ -265,8 +259,7 @@ def dashboard(request):
         'radar_show_grid': radar_show_grid,
         'radar_show_labels': radar_show_labels,
         'radar_speed': radar_speed,
-        'w_status': w_status,
-        'w_effort': w_effort,
+        'show_effort': show_effort,
         'badges': badges,
         'quote': quote,
         # filters state
@@ -314,10 +307,8 @@ def task_status(request, pk: int):
         form = TaskStatusForm(request.POST, instance=task)
         if form.is_valid():
             task = form.save()
-            # Recompute effort/combined with weights from session for HTMX response
-            w_status = request.session.get('w_status', 70)
-            w_effort = request.session.get('w_effort', 30)
-            weights = {'status': w_status, 'effort': w_effort}
+            # Recompute effort/combined with global weights for HTMX response
+            weights = get_progress_weights()
             try:
                 task.effort_pct = task_effort(task)[2]
                 task.combined_pct = task_combined_percent(task, weights)
@@ -326,7 +317,8 @@ def task_status(request, pk: int):
                 task.combined_pct = 0
             if request.headers.get('HX-Request'):
                 tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
-                return render(request, tpl, {'task': task})
+                show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+                return render(request, tpl, {'task': task, 'show_effort': show_effort})
             nxt = request.POST.get('next') or ''
             if nxt:
                 return redirect(nxt)
@@ -351,9 +343,7 @@ def task_target(request, pk: int):
         task.word_target = max(0, target)
         task.save()
         # Recompute to update badges if HTMX
-        w_status = request.session.get('w_status', 70)
-        w_effort = request.session.get('w_effort', 30)
-        weights = {'status': w_status, 'effort': w_effort}
+        weights = get_progress_weights()
         try:
             task.effort_pct = task_effort(task)[2]
             task.combined_pct = task_combined_percent(task, weights)
@@ -363,7 +353,8 @@ def task_target(request, pk: int):
         if request.headers.get('HX-Request'):
             # Choose partial based on viewer and flag as just saved (for UI pulse)
             tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
-            ctx = {'task': task, 'just_saved': True}
+            show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+            ctx = {'task': task, 'just_saved': True, 'show_effort': show_effort}
             if request.POST.get('explicit'):
                 ctx['toast_message'] = 'Target saved'
             return render(request, tpl, ctx)
@@ -553,9 +544,7 @@ def task_move(request, pk: int, direction: str):
     if request.headers.get('HX-Request'):
         # Recompute badges/effect for this row
         try:
-            w_status = request.session.get('w_status', 70)
-            w_effort = request.session.get('w_effort', 30)
-            weights = {'status': w_status, 'effort': w_effort}
+            weights = get_progress_weights()
             task.refresh_from_db()
             task.effort_pct = task_effort(task)[2]
             task.combined_pct = task_combined_percent(task, weights)
@@ -570,7 +559,8 @@ def task_move(request, pk: int, direction: str):
             task.effort_pct = 0
             task.combined_pct = 0
             task.can_move_up = task.can_move_down = False
-        return render(request, 'tracker/partials/task_row.html', {'task': task})
+        show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+        return render(request, 'tracker/partials/task_row.html', {'task': task, 'show_effort': show_effort})
     return redirect('dashboard')
 
 
@@ -655,11 +645,12 @@ def advisor_dashboard(request):
     if q:
         qs = qs.filter(title__icontains=q) | qs.filter(student__username__icontains=q)
     projects = list(qs)
+    weights = get_progress_weights()
     for p in projects:
         ts = list(p.tasks.select_related('milestone').all())
         total = len(ts)
         try:
-            p.combined_percent = int(round(sum(task_combined_percent(t) for t in ts) / total)) if total else 0
+            p.combined_percent = int(round(sum(task_combined_percent(t, weights) for t in ts) / total)) if total else 0
         except Exception:
             p.combined_percent = 0
         p.done_tasks = sum(1 for t in ts if t.status == 'done')
@@ -674,12 +665,16 @@ def advisor_dashboard(request):
         projects.sort(key=key_funcs[sort])
     paginator = Paginator(projects, per)
     page_obj = Paginator(projects, per).get_page(request.GET.get('page'))
+    show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+    if not show_effort and sort == 'combined':
+        sort = 'status'
     return render(request, 'tracker/advisor_dashboard.html', {
         'projects': page_obj.object_list,
         'page_obj': page_obj,
         'q': q,
         'sort': sort,
         'per': per,
+        'show_effort': show_effort,
     })
 
 
@@ -799,12 +794,14 @@ def advisor_project(request, pk: int):
     # Per-milestone progress summary
     milestones = project.milestones.prefetch_related('tasks').all()
     milestone_progress = []
+    weights = get_progress_weights()
+    show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
     for m in milestones:
         ts = list(m.tasks.all())
         total = len(ts)
         done = sum(1 for t in ts if t.status == 'done')
         if total:
-            avg = int(round(sum(task_combined_percent(t) for t in ts) / total))
+            avg = int(round(sum(task_combined_percent(t, weights) for t in ts) / total))
         else:
             avg = 0
         milestone_progress.append({'m': m, 'percent': avg, 'total': total, 'done': done})
@@ -832,6 +829,7 @@ def advisor_project(request, pk: int):
         'order': order,
         'q': q,
         'per': per,
+        'show_effort': show_effort,
     })
 
 
@@ -844,6 +842,7 @@ def advisor_project_export_json(request, pk: int):
     from django.http import HttpResponse
     project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
     tasks = list(project.tasks.select_related('milestone').all())
+    weights = get_progress_weights()
     data = {
         'project_id': project.id,
         'author': project.student.get_username(),
@@ -858,7 +857,7 @@ def advisor_project_export_json(request, pk: int):
                 'priority': t.priority,
                 'word_target': t.word_target,
                 'due_date': t.due_date.isoformat() if t.due_date else None,
-                'combined_percent': task_combined_percent(t),
+                'combined_percent': task_combined_percent(t, weights),
             }
             for t in tasks
         ],
@@ -879,6 +878,7 @@ def advisor_project_export_csv(request, pk: int):
     resp['Content-Disposition'] = f'attachment; filename="project_{project.id}_tasks.csv"'
     writer = csv.writer(resp)
     writer.writerow(['task_id', 'milestone', 'title', 'status', 'priority', 'word_target', 'due_date', 'combined_percent'])
+    weights = get_progress_weights()
     for t in project.tasks.select_related('milestone').all():
         writer.writerow([
             t.id,
@@ -888,7 +888,7 @@ def advisor_project_export_csv(request, pk: int):
             t.priority,
             t.word_target,
             t.due_date.isoformat() if t.due_date else '',
-            task_combined_percent(t),
+            task_combined_percent(t, weights),
         ])
     return resp
 
@@ -900,11 +900,12 @@ def advisor_export_json(request):
         return redirect('dashboard')
     import json
     from django.http import HttpResponse
+    weights = get_progress_weights()
     data = []
     for p in Project.objects.select_related('student').all():
         tasks = list(p.tasks.select_related('milestone').all())
         total = len(tasks)
-        combined = int(round(sum(task_combined_percent(t) for t in tasks) / total)) if total else 0
+        combined = int(round(sum(task_combined_percent(t, weights) for t in tasks) / total)) if total else 0
         done = sum(1 for t in tasks if t.status == 'done')
         data.append({
             'project_id': p.id,
@@ -930,10 +931,11 @@ def advisor_export_csv(request):
     resp['Content-Disposition'] = 'attachment; filename="advisor_export.csv"'
     writer = csv.writer(resp)
     writer.writerow(['project_id', 'author', 'email', 'title', 'total_tasks', 'done_tasks', 'combined_percent'])
+    weights = get_progress_weights()
     for p in Project.objects.select_related('student').all():
         tasks = list(p.tasks.select_related('milestone').all())
         total = len(tasks)
-        combined = int(round(sum(task_combined_percent(t) for t in tasks) / total)) if total else 0
+        combined = int(round(sum(task_combined_percent(t, weights) for t in tasks) / total)) if total else 0
         done = sum(1 for t in tasks if t.status == 'done')
         writer.writerow([p.id, p.student.get_username(), p.student.email, p.title, total, done, combined])
     return resp

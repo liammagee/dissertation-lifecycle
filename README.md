@@ -146,6 +146,7 @@ fly secrets set SIMPLE_PROGRESS_MODE=1
 Local setup
 - Python 3.10+
 - Install: `pip install -r requirements.txt`
+- Dev/test deps: `pip install -r requirements-dev.txt`
 - Env: copy `.env.example` to `.env` (or export same vars)
 - Init DB: `python manage.py migrate`
 - Seed templates: `python manage.py seed_templates`
@@ -171,6 +172,67 @@ Key URLs
 Storage on Fly.io
 - Use a Fly Volume mounted at `/data`; set `UPLOAD_ROOT=/data/uploads`.
 - Collect static in CI or at release: `python manage.py collectstatic --noinput` (optional if you later add static files)
+
+### Testing
+
+- Install dev dependencies: `pip install -r requirements-dev.txt`
+- Run tests: `pytest -q` or `make test`
+
+### Milestone Templates (Simplified)
+
+This app ships with a simplified, milestone‑only template set (no default tasks):
+
+- Literature Review - General Field
+- Literature Review - Special Field
+- Introduction
+- Methodology
+- Internal Review Board Application
+- Preliminary Exam
+- Findings
+- Conclusion
+- Final Defence
+
+You can apply these to projects via the New Project form (check “apply templates”), or from the command line (see below).
+
+### Reset / Reseed Templates
+
+- Reseed the simplified templates (deletes existing milestone/task templates):
+  - `python manage.py reset_templates`
+- Reseed and apply the core milestones to all existing projects:
+  - `python manage.py reset_templates --apply_core`
+- Just apply core milestones (no reseed):
+  - `python manage.py apply_core`
+
+Notes
+- “Core” means milestone templates whose keys start with `core-` (the simplified set uses this).
+- The simplified templates do not create any default tasks. You can add tasks per project as needed.
+
+### Full Reset (Data)
+
+Local (SQLite)
+- Option A — flush data, keep schema:
+  - `python manage.py flush --noinput`
+  - `python manage.py seed_templates`
+  - Create users again (e.g., `python manage.py createsuperuser` or `bootstrap_local`).
+- Option B — drop DB file and re‑init:
+  - Stop the server.
+  - Delete `db.sqlite3` (and optionally the `uploads/` folder).
+  - `python manage.py migrate`
+  - `python manage.py seed_templates`
+  - Recreate users.
+
+Postgres
+- Drop and recreate the database using your preferred method, then:
+  - `python manage.py migrate`
+  - `python manage.py seed_templates`
+  - Recreate users.
+
+Fly.io (production)
+- Reseed templates only:
+  - `fly ssh console -C "python manage.py reset_templates"`
+- Reseed and apply to all projects:
+  - `fly ssh console -C "python manage.py reset_templates --apply_core"`
+- Caution: For a full data reset in production, you’ll need to drop/recreate the database used by `DATABASE_URL` and then run migrations. Only do this if you intend to wipe all data.
 
 ### Notifications & Scheduling
 

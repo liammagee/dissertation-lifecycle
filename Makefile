@@ -1,4 +1,4 @@
-.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite samples
+.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite samples test dev-deps
 
 help:
 	@echo "Common tasks:"
@@ -14,6 +14,8 @@ help:
 	@echo "  make secrets-pg    # set Fly secrets (Postgres + SMTP)"
 	@echo "  make secrets-sqlite# set Fly secrets (SQLite + SMTP)"
 	@echo "  make samples       # create sample admin/advisor/student (+project/logs) on Fly"
+	@echo "  make test          # run pytest locally"
+	@echo "  make dev-deps      # install dev/test dependencies"
 
 deploy:
 	fly deploy
@@ -61,3 +63,9 @@ secrets-sqlite:
 # Create sample users/data in the Fly app
 samples:
 	fly ssh console -C "python manage.py create_samples"
+
+test:
+	./venv/bin/python -m pytest -q
+
+dev-deps:
+	./venv/bin/pip install -r requirements-dev.txt

@@ -115,29 +115,9 @@
   <div id="tasks-spinner" class="spinner-border spinner-border-sm text-secondary" role="status" style="display:none"><span class="visually-hidden">Loading…</span></div>
 </div>
 <div id="tasks-section">
-{% if not simple_mode %}
-<p class="mb-1"><a class="muted-link" data-bs-toggle="collapse" href="#adv-controls" role="button" aria-expanded="false" aria-controls="adv-controls"><i class="bi bi-sliders me-1"></i>Advanced controls</a></p>
-<div class="collapse" id="adv-controls">
-<form method="get" class="row g-2 align-items-end mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
-  <div class="col-auto">
-    <label for="w_status" class="form-label">Status weight (%)
-      <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much the task’s status contributes (To Do=0, Doing=50, Done=100).">i</span>
-    </label>
-    <input type="number" min="0" class="form-control" id="w_status" name="w_status" value="{{ w_status|default:70 }}">
-  </div>
-  <div class="col-auto">
-    <label for="w_effort" class="form-label">Effort weight (%)
-      <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much writing effort contributes (words logged ÷ word target, capped at 100%).">i</span>
-    </label>
-    <input type="number" min="0" class="form-control" id="w_effort" name="w_effort" value="{{ w_effort|default:30 }}">
-  </div>
-  <div class="col-auto">
-    <input type="hidden" name="update_weights" value="1" />
-    <button class="btn btn-outline-primary" type="submit">Apply</button>
-  </div>
-</form>
+{% if show_effort %}
 <div class="section-note mb-3">
-  Status: To&nbsp;Do=0, Doing=50, Done=100. Effort: words logged ÷ word target (max 100%). Combined is the weighted average (normalized). Milestone % averages task Combined values.
+  Status: To&nbsp;Do=0, Doing=50, Done=100. Effort: words logged ÷ word target (max 100%). Combined is the weighted average. Weights are managed by the administrator.
 </div>
 {% endif %}
 </div>

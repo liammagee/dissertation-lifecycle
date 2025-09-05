@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Iterable, Tuple
 from django.db import models as dj_models
 
-from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task
+from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task, AppSettings
 from django.conf import settings
 
 
@@ -130,15 +130,27 @@ def task_effort(task: Task) -> Tuple[int, int, int]:
     return words, target, percent
 
 
+def get_progress_weights() -> dict:
+    """Return current global weights as a dict {'status': int, 'effort': int}.
+
+    Defaults to status=100, effort=0 so effort is hidden by default.
+    """
+    try:
+        s = AppSettings.get()
+        return {'status': int(s.status_weight or 0), 'effort': int(s.effort_weight or 0)}
+    except Exception:
+        return {'status': 100, 'effort': 0}
+
+
 def task_combined_percent(task: Task, weights: dict | None = None) -> int:
     # In simple mode, ignore effort entirely and use status only
     if getattr(settings, 'SIMPLE_PROGRESS_MODE', False):
         return task_status_percent(task)
-    weights = weights or {'status': 70, 'effort': 30}
+    weights = weights or get_progress_weights()
     sp = task_status_percent(task)
     _, __, ep = task_effort(task)
-    tot = max(1, int(weights.get('status', 70)) + int(weights.get('effort', 30)))
-    return int(round((int(weights.get('status', 70)) * sp + int(weights.get('effort', 30)) * ep) / tot))
+    tot = max(1, int(weights.get('status', 0)) + int(weights.get('effort', 0)))
+    return int(round((int(weights.get('status', 0)) * sp + int(weights.get('effort', 0)) * ep) / tot))
 
 
 def compute_badges(project: Project) -> list[str]:
