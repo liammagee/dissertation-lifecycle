@@ -2,6 +2,18 @@
   <td>{{ task.milestone.name }}</td>
   <td>
     {{ task.title }}
+    {% if task.template and task.template.guidance_tips or task.template and task.template.guidance_url %}
+      <button type="button"
+              class="badge rounded-pill text-bg-info ms-1 border-0"
+              style="cursor:pointer"
+              title="View quick guidance"
+              data-bs-toggle="tooltip"
+              hx-get="{% url 'task_guidance' task.pk %}"
+              hx-target="#guidance-body"
+              hx-swap="innerHTML">
+        Tips
+      </button>
+    {% endif %}
     {% if show_effort %}
       <form method="post" action="{% url 'task_target' task.pk %}" class="d-inline ms-2" hx-post="{% url 'task_target' task.pk %}" hx-target="#adv-task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
         <span class="text-muted small">Target:</span>

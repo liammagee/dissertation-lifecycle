@@ -24,8 +24,17 @@ else:
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
 if not CSRF_TRUSTED_ORIGINS:
-    # Common Fly origin (update via env for custom domains)
-    CSRF_TRUSTED_ORIGINS = ["https://*.fly.dev"]
+    # Sensible defaults for local dev and Fly
+    if DEBUG:
+        CSRF_TRUSTED_ORIGINS = [
+            "http://127.0.0.1",
+            "http://127.0.0.1:8000",
+            "http://localhost",
+            "http://localhost:8000",
+        ]
+    else:
+        # Common Fly origin (update via env for custom domains)
+        CSRF_TRUSTED_ORIGINS = ["https://*.fly.dev"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',

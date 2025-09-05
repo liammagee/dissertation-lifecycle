@@ -1,4 +1,4 @@
-.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite samples test dev-deps
+.PHONY: help deploy logs ssh migrate seed-core apply-core admin advisor notify secrets-pg secrets-sqlite samples test dev-deps sync sync-local
 
 help:
 	@echo "Common tasks:"
@@ -16,6 +16,8 @@ help:
 	@echo "  make samples       # create sample admin/advisor/student (+project/logs) on Fly"
 	@echo "  make test          # run pytest locally"
 	@echo "  make dev-deps      # install dev/test dependencies"
+	@echo "  make sync          # reconcile milestones on Fly (sync_milestones)"
+	@echo "  make sync-local    # reconcile milestones locally"
 
 deploy:
 	fly deploy
@@ -69,3 +71,9 @@ test:
 
 dev-deps:
 	./venv/bin/pip install -r requirements-dev.txt
+
+sync:
+	fly ssh console -C "python manage.py sync_milestones"
+
+sync-local:
+	./venv/bin/python manage.py sync_milestones

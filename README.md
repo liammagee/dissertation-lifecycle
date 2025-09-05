@@ -203,6 +203,17 @@ You can apply these to projects via the New Project form (check “apply templat
 - Just apply core milestones (no reseed):
   - `python manage.py apply_core`
 
+After reseeding/apply-core, reconcile existing projects to remove duplicates and migrate old milestones:
+- `python manage.py sync_milestones`  (use `--dry-run` first to preview changes)
+  - Or on Fly.io: `make sync` (runs the command inside the app VM)
+  - Locally you can also use: `make sync-local`
+
+Quick reseed + sync (local)
+- `python manage.py reset_templates && python manage.py seed_templates && python manage.py apply_core && python manage.py sync_milestones`
+
+Quick reseed + sync (Fly.io)
+- `fly ssh console -C "python manage.py reset_templates && python manage.py seed_templates && python manage.py apply_core && python manage.py sync_milestones"`
+
 Notes
 - “Core” means milestone templates whose keys start with `core-` (the simplified set uses this).
 - The simplified templates do not create any default tasks. You can add tasks per project as needed.
@@ -215,11 +226,12 @@ Local (SQLite)
   - `python manage.py seed_templates`
   - Create users again (e.g., `python manage.py createsuperuser` or `bootstrap_local`).
 - Option B — drop DB file and re‑init:
-  - Stop the server.
+  - Stop the dev server if running: press Ctrl+C in the terminal where `python manage.py runserver` is running.
+    - If it was started in the background, stop it with `pkill -f "manage.py runserver"` (macOS/Linux).
   - Delete `db.sqlite3` (and optionally the `uploads/` folder).
-  - `python manage.py migrate`
-  - `python manage.py seed_templates`
-  - Recreate users.
+  - Recreate schema: `python manage.py migrate`
+  - Seed templates: `python manage.py seed_templates`
+  - Recreate users (e.g., `python manage.py createsuperuser` or `bootstrap_local` or `create_samples`).
 
 Postgres
 - Drop and recreate the database using your preferred method, then:
@@ -232,6 +244,8 @@ Fly.io (production)
   - `fly ssh console -C "python manage.py reset_templates"`
 - Reseed and apply to all projects:
   - `fly ssh console -C "python manage.py reset_templates --apply-core"`
+- Then reconcile existing projects (recommended):
+  - `fly ssh console -C "python manage.py sync_milestones"` (or `make sync`)
 - Caution: For a full data reset in production, you’ll need to drop/recreate the database used by `DATABASE_URL` and then run migrations. Only do this if you intend to wipe all data.
 
 ### Notifications & Scheduling

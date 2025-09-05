@@ -42,18 +42,18 @@ def apply_templates_to_project(project: Project, include_phd: bool = False, incl
             # Heuristics to set default word targets for literature reviews
             target = 0
             title_lower = tt.title.lower()
-            if mt.key == 'chapter2-general':
+            if mt.key in ('chapter2-general', 'core-literature-review-general'):
                 if 'start general field writing' in title_lower:
                     target = 5500
                 if 'goal' in title_lower and '5000' in title_lower:
                     target = 5500
-            if mt.key == 'chapter2-special':
+            if mt.key in ('chapter2-special', 'core-literature-review-special'):
                 if 'start special field writing' in title_lower:
                     target = 4500
                 if 'goal' in title_lower and '4000' in title_lower:
                     target = 4500
             # Core literature review default target for Draft
-            if mt.key == 'core-literature-review':
+            if mt.key in ('core-literature-review', 'core-literature-review-general', 'core-literature-review-special'):
                 if 'draft literature review' in title_lower:
                     target = 5500
             # Core methodology/findings/conclusion default targets for Draft
