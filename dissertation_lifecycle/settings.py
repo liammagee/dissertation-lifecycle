@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', '1') == '1'
+SIMPLE_PROGRESS_MODE = os.getenv('SIMPLE_PROGRESS_MODE', '0') == '1'
 
 # Hosts and CSRF
 if DEBUG:
@@ -61,6 +62,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'tracker.context.simple_mode',
             ],
         },
     },

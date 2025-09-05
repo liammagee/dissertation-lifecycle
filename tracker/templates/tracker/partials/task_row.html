@@ -46,6 +46,7 @@
           <span class="badge bg-success-subtle text-success-emphasis ms-1">Done</span>
         {% endif %}
       </div>
+      {% if not simple_mode %}
       <div class="task-target">
         <form method="post" action="{% url 'task_target' task.pk %}" class="d-inline" hx-post="{% url 'task_target' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML" hx-indicator="#tsk-{{ task.pk }}-spin" hx-trigger="change from:input, keyup changed delay:500ms from:input">{% csrf_token %}
           <input name="word_target" type="number" min="0" value="{{ task.word_target|default:0 }}" placeholder="Target" aria-label="Target words" class="form-control form-control-sm d-inline" />
@@ -73,6 +74,10 @@
           </button>
         {% endif %}
       </div>
+      {% else %}
+      <div></div>
+      {% endif %}
+      {% if not simple_mode %}
       <div>
         {% if task.word_target|default:0|add:0 == 0 %}
           <span class="badge text-bg-secondary badge-fixed" data-bs-toggle="tooltip" title="Set a word target to calculate effort">Effort —</span>
@@ -89,6 +94,10 @@
       <div>
         <span class="badge text-bg-light badge-fixed" data-bs-toggle="tooltip" title="Combined = weighted average of status and effort (set weights above)">Combined {{ task.combined_pct }}%</span>
       </div>
+      {% else %}
+      <div></div>
+      <div></div>
+      {% endif %}
     </div>
   </td>
   <td>{{ task.due_date|default:'—' }}</td>

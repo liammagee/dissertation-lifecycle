@@ -4,6 +4,7 @@ from typing import Iterable, Tuple
 from django.db import models as dj_models
 
 from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task
+from django.conf import settings
 
 
 def apply_templates_to_project(project: Project, include_phd: bool = False, include_detailed: bool = False) -> None:
@@ -130,6 +131,9 @@ def task_effort(task: Task) -> Tuple[int, int, int]:
 
 
 def task_combined_percent(task: Task, weights: dict | None = None) -> int:
+    # In simple mode, ignore effort entirely and use status only
+    if getattr(settings, 'SIMPLE_PROGRESS_MODE', False):
+        return task_status_percent(task)
     weights = weights or {'status': 70, 'effort': 30}
     sp = task_status_percent(task)
     _, __, ep = task_effort(task)

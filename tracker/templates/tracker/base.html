@@ -27,7 +27,17 @@
     @keyframes sectionFlash { 0% { background-color: #fff7e6; } 100% { background-color: transparent; } }
     #tasks-section.section-flash { animation: sectionFlash .8s ease-in-out; }
     .tip { display:inline-block; width:18px; height:18px; line-height:16px; text-align:center; font-size:12px; border:1px solid #ccc; border-radius:50%; color:#6c757d; cursor:help; }
-    @media (max-width: 900px){
+    /* Toolbar + chips */
+    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:flex-end; }
+    .toolbar .form-label { font-size:.85rem; color:#6c757d; margin-bottom:.25rem; }
+    .chip { border-radius:999px; padding:.25rem .6rem; border:1px solid #dee2e6; background:#fff; font-size:.875rem; }
+    .chip.active { background:#0d6efd0d; border-color:#cfe2ff; color:#0d6efd; }
+    .muted-link { color:#6c757d !important; text-decoration:none; }
+    .muted-link:hover { text-decoration:underline; }
+    /* Softer table dividers */
+    .task-table tbody tr td { border-top-color:#f1f3f5; }
+    .section-note { color:#6c757d; font-size:.9rem; }
+  @media (max-width: 900px){
       /* Stack on narrow screens */
       .task-grid { grid-template-columns: 1fr; row-gap: .25rem; }
       .task-target .btn { width: auto; }
@@ -42,7 +52,9 @@
       <ul class="navbar-nav ms-auto">
         {% if user.is_authenticated %}
         <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
+        {% if not simple_mode %}
         <li class="nav-item"><a class="nav-link" href="{% url 'wordlogs' %}">Writing</a></li>
+        {% endif %}
         <li class="nav-item"><a class="nav-link" href="{% url 'feedback' %}">Feedback</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'project_notes' %}">Notes</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>

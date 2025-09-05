@@ -128,6 +128,19 @@ Each is stored under `sections/<name>.md` and initialized with a brief template.
 
 - Adjust under the Targets page. Default is 70% words and 30% lifecycle.
 - Weights do not need to sum to 100; they are normalized by their sum.
+
+### Simple Progress Mode (status‑only)
+
+- To use the app purely as a task progress tracker (no word‑based effort), set:
+
+```
+fly secrets set SIMPLE_PROGRESS_MODE=1
+```
+
+- Effects:
+  - Progress is based on task status only (To Do=0, Doing=50, Done=100).
+  - Dashboard hides word targets and effort/combined badges.
+  - Writing navigation is hidden (you can re‑enable anytime by clearing the flag).
 ## Django Web App (new)
 
 Local setup

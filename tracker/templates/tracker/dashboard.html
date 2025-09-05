@@ -40,75 +40,84 @@
  </div>
 {% endif %}
 
-<div class="mb-4 d-flex justify-content-between align-items-center">
-  <h5>Radar Overview</h5>
-  <a class="btn btn-sm btn-outline-success" href="{% url 'task_new' %}">+ New Task</a>
-  <form method="get" class="row g-2 align-items-end mb-2">
-    <input type="hidden" name="update_radar" value="1" />
-    <div class="col-auto form-check">
-      <input class="form-check-input" type="checkbox" id="f_grid" name="show_grid" value="1" {% if radar_show_grid %}checked{% endif %}>
-      <label for="f_grid" class="form-check-label">Show grid</label>
-    </div>
-    <div class="col-auto form-check">
-      <input class="form-check-input" type="checkbox" id="f_labels" name="show_labels" value="1" {% if radar_show_labels %}checked{% endif %}>
-      <label for="f_labels" class="form-check-label">Show labels</label>
-    </div>
-    <div class="col-auto">
-      <label for="f_speed" class="form-label">Sweep speed (s)</label>
-      <input type="number" min="1" max="20" class="form-control" id="f_speed" name="speed" value="{{ radar_speed }}">
-    </div>
-    <div class="col-auto">
-      <button class="btn btn-outline-primary" type="submit">Update</button>
-    </div>
-  </form>
+<div class="mb-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <a class="muted-link" data-bs-toggle="collapse" href="#radar-controls" role="button" aria-expanded="false" aria-controls="radar-controls">
+      <i class="bi bi-gear me-1"></i>Configure radar
+    </a>
+  </div>
+  <div class="collapse" id="radar-controls">
+    <form method="get" class="row g-2 align-items-end mb-2">
+      <input type="hidden" name="update_radar" value="1" />
+      <div class="col-auto form-check">
+        <input class="form-check-input" type="checkbox" id="f_grid" name="show_grid" value="1" {% if radar_show_grid %}checked{% endif %}>
+        <label for="f_grid" class="form-check-label">Show grid</label>
+      </div>
+      <div class="col-auto form-check">
+        <input class="form-check-input" type="checkbox" id="f_labels" name="show_labels" value="1" {% if radar_show_labels %}checked{% endif %}>
+        <label for="f_labels" class="form-check-label">Show labels</label>
+      </div>
+      <div class="col-auto">
+        <label for="f_speed" class="form-label">Sweep speed (s)</label>
+        <input type="number" min="1" max="20" class="form-control" id="f_speed" name="speed" value="{{ radar_speed }}">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-primary" type="submit">Update</button>
+      </div>
+    </form>
+  </div>
   {% radar radar_points 320 18 radar_show_grid radar_show_labels radar_speed %}
-  <div class="text-muted small mt-2">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
+  <div class="text-muted small mt-1">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
 </div>
 
 <form method="get" class="mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
-  <div class="row g-2 align-items-end">
-    <div class="col-auto">
+  <div class="toolbar">
+    <div>
       <label class="form-label">Status</label>
-      <select name="status" class="form-select form-select-sm">
+      <select name="status" class="form-select form-select-sm" style="min-width:120px">
         <option value="">All</option>
         <option value="todo" {% if status_filter == 'todo' %}selected{% endif %}>To Do</option>
         <option value="doing" {% if status_filter == 'doing' %}selected{% endif %}>Doing</option>
         <option value="done" {% if status_filter == 'done' %}selected{% endif %}>Done</option>
       </select>
     </div>
-    <div class="col-auto">
+    <div>
       <label class="form-label">Milestone</label>
-      <select name="milestone" class="form-select form-select-sm">
+      <select name="milestone" class="form-select form-select-sm" style="min-width:180px">
         <option value="">All</option>
         {% for m in milestones %}
           <option value="{{ m.id }}" {% if milestone_id|add:'' == m.id|add:'' %}selected{% endif %}>{{ m.name }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-auto form-check mt-4">
+    <div class="form-check align-self-center">
       <input class="form-check-input" type="checkbox" id="s_has_target" name="has_target" value="1" {% if has_target %}checked{% endif %}>
       <label for="s_has_target" class="form-check-label">Has target</label>
     </div>
-    <div class="col-auto form-check mt-4">
+    <div class="form-check align-self-center">
       <input class="form-check-input" type="checkbox" id="s_drafts" name="drafts" value="1" {% if drafts %}checked{% endif %}>
       <label for="s_drafts" class="form-check-label">Drafts</label>
     </div>
-    <div class="col-auto">
+    <div>
       <label class="form-label">Due ≤ days</label>
-      <input class="form-control form-control-sm" type="number" min="1" name="due" value="{{ due }}">
+      <input class="form-control form-control-sm" type="number" min="1" name="due" value="{{ due }}" style="width:110px">
     </div>
-    <div class="col-auto">
-      <button class="btn btn-sm btn-outline-primary" type="submit">Filter</button>
+    <div class="ms-auto d-flex align-items-end gap-2">
+      <a class="btn btn-sm btn-success" href="{% url 'task_new' %}"><i class="bi bi-plus-lg me-1"></i>New Task</a>
+      <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard' %}">Clear</a>
     </div>
   </div>
  </form>
- <div class="mb-2"><a class="small" href="{% url "dashboard" %}">Clear filters</a></div>
 
 <!-- Weighting controls just above the task list -->
 <div class="d-flex align-items-center justify-content-end mb-1">
   <div id="tasks-spinner" class="spinner-border spinner-border-sm text-secondary" role="status" style="display:none"><span class="visually-hidden">Loading…</span></div>
 </div>
 <div id="tasks-section">
+{% if not simple_mode %}
+<p class="mb-1"><a class="muted-link" data-bs-toggle="collapse" href="#adv-controls" role="button" aria-expanded="false" aria-controls="adv-controls"><i class="bi bi-sliders me-1"></i>Advanced controls</a></p>
+<div class="collapse" id="adv-controls">
 <form method="get" class="row g-2 align-items-end mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
   <div class="col-auto">
     <label for="w_status" class="form-label">Status weight (%)
@@ -124,14 +133,16 @@
   </div>
   <div class="col-auto">
     <input type="hidden" name="update_weights" value="1" />
-    <button class="btn btn-outline-primary" type="submit">Update weighting</button>
+    <button class="btn btn-outline-primary" type="submit">Apply</button>
   </div>
 </form>
-<div class="text-muted small mb-3">
-  Status weight: how much the task’s status contributes (To&nbsp;Do=0, Doing=50, Done=100). Effort weight: how much writing effort contributes (words logged ÷ word target, capped at 100%). Combined = weighted average normalized by their sum. Milestone % is the average of task Combined values. Effort badge colors: <span class="badge text-bg-danger">&lt;30%</span>, <span class="badge text-bg-warning">30–74%</span>, <span class="badge text-bg-success">≥75%</span>.
+<div class="section-note mb-3">
+  Status: To&nbsp;Do=0, Doing=50, Done=100. Effort: words logged ÷ word target (max 100%). Combined is the weighted average (normalized). Milestone % averages task Combined values.
+</div>
+{% endif %}
 </div>
 
-<table class="table table-sm align-middle">
+<table class="table table-sm table-hover align-middle task-table">
   <thead>
     <tr><th>Milestone</th><th>Task</th><th>Due</th><th>Status</th></tr>
   </thead>
