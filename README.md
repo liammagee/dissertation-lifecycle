@@ -199,7 +199,7 @@ You can apply these to projects via the New Project form (check “apply templat
 - Reseed the simplified templates (deletes existing milestone/task templates):
   - `python manage.py reset_templates`
 - Reseed and apply the core milestones to all existing projects:
-  - `python manage.py reset_templates --apply_core`
+  - `python manage.py reset_templates --apply-core`
 - Just apply core milestones (no reseed):
   - `python manage.py apply_core`
 
@@ -231,7 +231,7 @@ Fly.io (production)
 - Reseed templates only:
   - `fly ssh console -C "python manage.py reset_templates"`
 - Reseed and apply to all projects:
-  - `fly ssh console -C "python manage.py reset_templates --apply_core"`
+  - `fly ssh console -C "python manage.py reset_templates --apply-core"`
 - Caution: For a full data reset in production, you’ll need to drop/recreate the database used by `DATABASE_URL` and then run migrations. Only do this if you intend to wipe all data.
 
 ### Notifications & Scheduling
