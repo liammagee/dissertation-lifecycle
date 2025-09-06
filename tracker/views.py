@@ -650,6 +650,7 @@ def task_reorder(request):
         target_mid = int(target_mid) if target_mid else None
     except Exception:
         target_mid = None
+    position = (request.POST.get('position') or '').strip()
     # Fetch owned task
     task = get_object_or_404(Task.objects.select_related('milestone', 'project'), pk=task_id, project__student=request.user)
     with transaction.atomic():
@@ -1845,6 +1846,5 @@ def advisor_export_import_csv(request):
             '',  # password
             display,
             '',  # new_title
-    position = (request.POST.get('position') or '').strip()
         ])
     return resp
