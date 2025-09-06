@@ -1,0 +1,31 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>Advisor Import</h2>
+<p class="text-muted">Upload a CSV with columns: <code>username,email,title,apply_templates,status,password</code>. You can <a href="{% url 'advisor_import_template' %}">download a template</a>. Existing users/projects are updated; missing ones are created. Password is optional; leave blank to set an unusable password (students can use password reset).</p>
+
+<form method="post" enctype="multipart/form-data" class="mb-3">{% csrf_token %}
+  <div class="mb-2">{{ form.file.label_tag }} {{ form.file }}<div class="text-muted small">{{ form.file.help_text }}</div></div>
+  <div class="form-check mb-2">
+    {{ form.update_only }} <label class="form-check-label" for="id_update_only">Update only (no creates)</label>
+  </div>
+  <div class="form-check mb-3">
+    {{ form.dry_run }} <label class="form-check-label" for="id_dry_run">Dry run (no changes)</label>
+  </div>
+  <button class="btn btn-primary" type="submit">Import</button>
+  <a class="btn btn-outline-secondary" href="{% url 'advisor_export_csv' %}">Export CSV</a>
+  <a class="btn btn-outline-secondary" href="{% url 'advisor_import_template' %}">Download Template</a>
+</form>
+
+{% if results %}
+  <div class="card">
+    <div class="card-header">Results</div>
+    <div class="card-body">
+      <ul class="mb-0">
+        {% for kind,msg in results %}
+          <li class="{% if kind == 'error' %}text-danger{% endif %}">{{ msg }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% endif %}
+{% endblock %}

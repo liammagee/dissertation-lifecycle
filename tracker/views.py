@@ -23,6 +23,7 @@ from .forms import (
     ProjectNoteForm,
     SignupForm,
     ResendActivationForm,
+    AdvisorImportForm,
 )
 from .models import Profile, Project, Task, Document, ProjectNote
 from django.contrib.auth.models import User
@@ -149,6 +150,17 @@ def home(request):
     return render(request, 'tracker/home.html')
 
 
+def toggle_theme(request):
+    """Toggle dark/light theme and redirect back."""
+    try:
+        cur = request.session.get('theme', 'light')
+        request.session['theme'] = 'dark' if cur != 'dark' else 'light'
+    except Exception:
+        pass
+    nxt = request.META.get('HTTP_REFERER') or '/'
+    return redirect(nxt)
+
+
 @login_required
 def dashboard(request):
     # If user is advisor, redirect to advisor dashboard
@@ -191,6 +203,28 @@ def dashboard(request):
         except Exception:
             pass
     tasks = list(qs)
+    # Stage-gated milestones (must be done in order)
+    GATED_KEYS = [
+        'core-literature-review-general',
+        'core-literature-review-special',
+        'core-irb-application',
+        'core-preliminary-exam',
+        'core-final-defence',
+    ]
+    # Precompute which gated milestones are done (all tasks done)
+    done_by_key: dict[str, bool] = {}
+    for key in GATED_KEYS:
+        m = project.milestones.select_related('template').filter(template__key=key).first()
+        if not m:
+            done_by_key[key] = False
+        else:
+            ts = list(m.tasks.all())
+            done_by_key[key] = bool(ts) and all(t.status == 'done' for t in ts)
+    # Helper to get display name for a gated key
+    name_by_key: dict[str, str] = {}
+    for m in project.milestones.select_related('template').all():
+        if m.template and m.template.key in GATED_KEYS:
+            name_by_key[m.template.key] = m.name
     # Compute can-move flags per task (based on full milestone ordering)
     by_milestone = {}
     for t in project.tasks.select_related('milestone').order_by('milestone__order', 'order', 'pk'):
@@ -242,6 +276,27 @@ def dashboard(request):
         except Exception:
             t.effort_pct = 0
             t.combined_pct = 0
+        # Stage-gating status for this task
+        try:
+            key = getattr(getattr(t.milestone, 'template', None), 'key', '')
+            if key in GATED_KEYS:
+                idx = GATED_KEYS.index(key)
+                blocked = False
+                wait_for = ''
+                if idx > 0:
+                    for prev in GATED_KEYS[:idx]:
+                        if not done_by_key.get(prev, False):
+                            blocked = True
+                            wait_for = name_by_key.get(prev, prev)
+                            break
+                t.gated_blocked = blocked
+                t.gated_wait = wait_for
+            else:
+                t.gated_blocked = False
+                t.gated_wait = ''
+        except Exception:
+            t.gated_blocked = False
+            t.gated_wait = ''
     badges = compute_badges(project)
     # Quote of the day (stable per user+date)
     try:
@@ -646,6 +701,13 @@ def advisor_dashboard(request):
         qs = qs.filter(title__icontains=q) | qs.filter(student__username__icontains=q)
     projects = list(qs)
     weights = get_progress_weights()
+    GATED_KEYS = [
+        'core-literature-review-general',
+        'core-literature-review-special',
+        'core-irb-application',
+        'core-preliminary-exam',
+        'core-final-defence',
+    ]
     for p in projects:
         ts = list(p.tasks.select_related('milestone').all())
         total = len(ts)
@@ -654,12 +716,37 @@ def advisor_dashboard(request):
         except Exception:
             p.combined_percent = 0
         p.done_tasks = sum(1 for t in ts if t.status == 'done')
+        # Compute next gated stage (if any)
+        try:
+            done_by_key: dict[str, bool] = {}
+            name_by_key: dict[str, str] = {}
+            id_by_key: dict[str, int] = {}
+            for m in p.milestones.select_related('template').all():
+                if m.template and m.template.key in GATED_KEYS:
+                    mts = list(m.tasks.all())
+                    done_by_key[m.template.key] = bool(mts) and all(t.status == 'done' for t in mts)
+                    name_by_key[m.template.key] = m.name
+                    id_by_key[m.template.key] = m.id
+            p.gated_next = ''
+            p.gated_next_id = None
+            p.gated_next_index = 999
+            for key in GATED_KEYS:
+                if not done_by_key.get(key, False):
+                    p.gated_next = name_by_key.get(key, key)
+                    p.gated_next_id = id_by_key.get(key)
+                    p.gated_next_index = GATED_KEYS.index(key)
+                    break
+        except Exception:
+            p.gated_next = ''
+            p.gated_next_id = None
+            p.gated_next_index = 999
     key_funcs = {
         'student': lambda x: (getattr(x.student, 'username', ''), x.title.lower()),
         'title': lambda x: (x.title.lower(), getattr(x.student, 'username', '')),
         'combined': lambda x: (-int(x.combined_percent or 0), -x.done_tasks, -x.total_tasks),
         'status': lambda x: (-x.completion_percent(), -x.total_tasks),
         'tasks': lambda x: (-int(x.total_tasks or 0), x.title.lower()),
+        'gate': lambda x: (int(getattr(x, 'gated_next_index', 999)), x.title.lower()),
     }
     if sort in key_funcs:
         projects.sort(key=key_funcs[sort])
@@ -737,6 +824,42 @@ def advisor_project(request, pk: int):
     per = max(1, min(100, int(request.GET.get('per', '25'))))
     page_obj = Paginator(qs, per).get_page(request.GET.get('page'))
     tasks = list(page_obj.object_list)
+    # Stage-gating for advisor view (informational locks)
+    GATED_KEYS = [
+        'core-literature-review-general',
+        'core-literature-review-special',
+        'core-irb-application',
+        'core-preliminary-exam',
+        'core-final-defence',
+    ]
+    done_by_key: dict[str, bool] = {}
+    name_by_key: dict[str, str] = {}
+    for m in project.milestones.select_related('template').all():
+        if m.template and m.template.key in GATED_KEYS:
+            ts = list(m.tasks.all())
+            done_by_key[m.template.key] = bool(ts) and all(t.status == 'done' for t in ts)
+            name_by_key[m.template.key] = m.name
+    for t in tasks:
+        try:
+            key = getattr(getattr(t.milestone, 'template', None), 'key', '')
+            if key in GATED_KEYS:
+                idx = GATED_KEYS.index(key)
+                blocked = False
+                wait_for = ''
+                if idx > 0:
+                    for prev in GATED_KEYS[:idx]:
+                        if not done_by_key.get(prev, False):
+                            blocked = True
+                            wait_for = name_by_key.get(prev, prev)
+                            break
+                t.gated_blocked = blocked
+                t.gated_wait = wait_for
+            else:
+                t.gated_blocked = False
+                t.gated_wait = ''
+        except Exception:
+            t.gated_blocked = False
+            t.gated_wait = ''
     notes = project.notes.select_related('author').all()
     docs = project.documents.select_related('task').order_by('-uploaded_at')
     from .models import FeedbackRequest, FeedbackComment, Document
@@ -1275,3 +1398,116 @@ def my_export_zip(request):
     resp = HttpResponse(buf.getvalue(), content_type='application/zip')
     resp['Content-Disposition'] = f'attachment; filename="my_project_export.zip"'
     return resp
+
+
+@login_required
+def advisor_import_template(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename="advisor_import_template.csv"'
+    w = csv.writer(resp)
+    w.writerow(['username', 'email', 'title', 'apply_templates', 'status', 'password'])
+    w.writerow(['alice', 'alice@example.com', 'Sample Dissertation', '1', 'active', ''])
+    return resp
+
+
+@login_required
+def advisor_import(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    results = []
+    if request.method == 'POST':
+        form = AdvisorImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            import csv, io
+            f = form.cleaned_data['file']
+            try:
+                data = f.read().decode('utf-8')
+            except Exception:
+                data = f.read().decode('latin-1', errors='ignore')
+            reader = csv.DictReader(io.StringIO(data))
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            created_users = updated_users = created_projects = updated_projects = 0
+            from .models import Profile, Project
+            for row in reader:
+                uname = (row.get('username') or '').strip()
+                email = (row.get('email') or '').strip()
+                title = (row.get('title') or '').strip() or 'Untitled Project'
+                display_name = (row.get('display_name') or '').strip()
+                new_title = (row.get('new_title') or '').strip()
+                apply_templates = (row.get('apply_templates') or '0').strip().lower() in ('1', 'true', 'yes', 'y')
+                status = (row.get('status') or 'active').strip() or 'active'
+                pwd = (row.get('password') or '').strip()
+                if not uname:
+                    results.append(('error', 'Missing username'))
+                    continue
+                # Fetch or create user
+                user = User.objects.filter(username=uname).first()
+                u_created = False
+                update_only = bool(form.cleaned_data.get('update_only'))
+                dry_run = bool(form.cleaned_data.get('dry_run'))
+                if not user:
+                    if update_only:
+                        results.append(('error', f"User missing (update-only): {uname}"))
+                        continue
+                    user = User(username=uname, email=email)
+                    if not dry_run:
+                        if pwd:
+                            user.set_password(pwd)
+                        else:
+                            user.set_unusable_password()
+                        user.save()
+                    u_created = True
+                    created_users += 1
+                else:
+                    if email and user.email != email:
+                        if not dry_run:
+                            user.email = email
+                            user.save(update_fields=['email'])
+                        updated_users += 1
+                # Ensure / update Profile and display name
+                prof = Profile.objects.filter(user=user).first()
+                if not prof:
+                    if not update_only and not dry_run:
+                        Profile.objects.create(user=user, role='student')
+                elif display_name and prof.display_name != display_name and not dry_run:
+                    prof.display_name = display_name
+                    prof.save(update_fields=['display_name'])
+                # Fetch or create project
+                proj = Project.objects.filter(student=user, title=title).first()
+                p_created = False
+                if not proj:
+                    if update_only:
+                        results.append(('error', f"Project missing (update-only): {uname} / {title}"))
+                        continue
+                    proj = Project(student=user, title=title, status=status)
+                    if not dry_run:
+                        proj.save()
+                    p_created = True
+                    created_projects += 1
+                if not p_created:
+                    changed = False
+                    if status and proj.status != status:
+                        proj.status = status; changed = True
+                    if new_title and new_title != proj.title:
+                        proj.title = new_title; changed = True
+                    if changed and not dry_run:
+                        proj.save(update_fields=['status', 'title'])
+                        updated_projects += 1
+                else:
+                    if apply_templates and not dry_run:
+                        try:
+                            apply_templates_to_project(proj)
+                        except Exception:
+                            pass
+                results.append(('ok', f"{uname} / {title} ({'new' if p_created else 'updated'})"))
+            messages.success(request, f"Import complete. Users: +{created_users}/{updated_users} updated. Projects: +{created_projects}/{updated_projects} updated.")
+    else:
+        form = AdvisorImportForm()
+    return render(request, 'tracker/advisor_import.html', {'form': form, 'results': results})

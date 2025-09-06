@@ -5,19 +5,26 @@
     <div class="task-grid{% if show_effort %} full{% endif %}">
       <div>
         <a href="{% url 'task_detail' task.pk %}">{{ task.title }}</a>
-        {% if task.template and task.template.guidance_tips or task.template and task.template.guidance_url %}
-          <button type="button"
-                  class="badge rounded-pill text-bg-info ms-1 border-0"
-                  style="cursor:pointer"
-                  title="View quick guidance"
-                  data-bs-toggle="tooltip"
-                  hx-get="{% url 'task_guidance' task.pk %}"
-                  hx-target="#guidance-body"
-                  hx-swap="innerHTML"
-                  hx-indicator="#tsk-{{ task.pk }}-spin">
-            Tips
-          </button>
-        {% endif %}
+        <span class="nowrap">
+          {% if task.template and task.template.guidance_tips or task.template and task.template.guidance_url %}
+            <button type="button"
+                    class="badge rounded-pill text-bg-info ms-1 border-0 badge-tight"
+                    style="cursor:pointer"
+                    title="View quick guidance"
+                    data-bs-toggle="tooltip"
+                    hx-get="{% url 'task_guidance' task.pk %}"
+                    hx-target="#guidance-body"
+                    hx-swap="innerHTML"
+                    hx-indicator="#tsk-{{ task.pk }}-spin">
+              Tips
+            </button>
+          {% endif %}
+          {% if task.gated_blocked %}
+            <span class="badge rounded-pill text-bg-secondary ms-1 badge-tight" data-bs-toggle="tooltip" title="Locked until previous stage is completed: {{ task.gated_wait }}">
+              <i class="bi bi-lock-fill"></i>
+            </span>
+          {% endif %}
+        </span>
       </div>
       <div class="task-actions">
         <div id="tsk-{{ task.pk }}-spin" class="spinner-border spinner-border-sm text-secondary" role="status" style="display:none"><span class="visually-hidden">Loading…</span></div>
@@ -108,10 +115,18 @@
       <input type="hidden" name="status" value="{{ task.status }}" />
       <div class="d-flex align-items-center" style="min-width:200px">
         <span class="text-muted small me-2" style="width:2ch">0%</span>
-        <input type="range" min="0" max="100" step="10" list="progressTicks" data-status-id="status-{{ task.pk }}"
-               value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
-               class="form-range flex-grow-1 progress-slider"
-               title="Progress: move to update status (0%=To Do, 1–99%=Doing, 100%=Done)" />
+        {% if task.gated_blocked %}
+          <span class="tooltip-wrapper" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first">
+            <input type="range" min="0" max="100" step="10" list="progressTicks" data-status-id="status-{{ task.pk }}"
+                   value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
+                   class="form-range flex-grow-1 progress-slider" disabled aria-disabled="true" style="pointer-events:none;" />
+          </span>
+        {% else %}
+          <input type="range" min="0" max="100" step="10" list="progressTicks" data-status-id="status-{{ task.pk }}"
+                 value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
+                 class="form-range flex-grow-1 progress-slider"
+                 title="Progress: move to update status (0%=To Do, 1–99%=Doing, 100%=Done)" />
+        {% endif %}
         <span class="text-muted small ms-2" style="width:3ch;text-align:right">100%</span>
       </div>
     </form>
@@ -119,13 +134,16 @@
   <td>
     <form method="post" action="{% url 'task_status' task.pk %}" hx-post="{% url 'task_status' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML" hx-indicator="#tsk-{{ task.pk }}-spin">{% csrf_token %}
       <div class="input-group input-group-sm">
-        <select id="status-{{ task.pk }}" name="status" class="form-select" style="min-width: 140px;" onchange="this.form.requestSubmit()">
+        <select id="status-{{ task.pk }}" name="status" class="form-select" style="min-width: 140px;" onchange="this.form.requestSubmit()" {% if task.gated_blocked %}disabled aria-disabled="true" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first"{% endif %}>
           <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
           <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
           <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
         </select>
         <span class="input-group-text"><i class="bi bi-caret-down-fill"></i></span>
       </div>
+      {% if task.gated_blocked %}
+        <div class="text-muted small mt-1"><i class="bi bi-lock"></i> Waiting for: {{ task.gated_wait }}</div>
+      {% endif %}
     </form>
   </td>
 </tr>

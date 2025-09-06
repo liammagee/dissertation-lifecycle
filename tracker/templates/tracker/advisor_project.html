@@ -101,7 +101,19 @@
             {% for t in tasks %}
               <tr>
                 <td>{{ t.milestone.name }}</td>
-                <td>{{ t.title }}{% if show_effort and t.word_target and t.word_target|add:0 > 0 %} <span class="text-muted small ms-2">Target: {{ t.word_target }} words</span>{% endif %}</td>
+                <td>
+                  {{ t.title }}
+                  <span class="nowrap">
+                    {% if t.gated_blocked %}
+                      <span class="badge rounded-pill text-bg-secondary ms-1 badge-tight" data-bs-toggle="tooltip" title="Locked until previous stage is completed: {{ t.gated_wait }}">
+                        <i class="bi bi-lock-fill"></i>
+                      </span>
+                    {% endif %}
+                    {% if show_effort and t.word_target and t.word_target|add:0 > 0 %}
+                      <span class="text-muted small ms-2">Target: {{ t.word_target }} words</span>
+                    {% endif %}
+                  </span>
+                </td>
                 <td>{{ t.get_status_display }}</td>
               </tr>
             {% empty %}

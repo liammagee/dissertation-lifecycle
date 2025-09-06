@@ -13,6 +13,7 @@ urlpatterns = [
     path('resend-activation/', views.resend_activation, name='resend_activation'),
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
     path('healthz', views.healthz, name='healthz'),
+    path('theme/toggle/', views.toggle_theme, name='toggle_theme'),
 
     path('', views.home, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -43,4 +44,6 @@ urlpatterns = [
     path('advisor/projects/<int:pk>/wordlogs.csv', views.advisor_project_wordlogs_csv, name='advisor_project_wordlogs_csv'),
     path('advisor/export.json', views.advisor_export_json, name='advisor_export_json'),
     path('advisor/export.csv', views.advisor_export_csv, name='advisor_export_csv'),
+    path('advisor/import/', views.advisor_import, name='advisor_import'),
+    path('advisor/import/template.csv', views.advisor_import_template, name='advisor_import_template'),
 ]
