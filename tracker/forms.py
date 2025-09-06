@@ -126,3 +126,5 @@ class AdvisorImportForm(forms.Form):
     ))
     update_only = forms.BooleanField(required=False, initial=False, help_text="Only update existing users/projects; do not create missing ones.")
     dry_run = forms.BooleanField(required=False, initial=False, help_text="Parse and report actions without making changes.")
+    create_missing_users = forms.BooleanField(required=False, initial=False, help_text="Allow creating missing users even if Update only is checked.")
+    create_missing_projects = forms.BooleanField(required=False, initial=False, help_text="Allow creating missing projects even if Update only is checked.")

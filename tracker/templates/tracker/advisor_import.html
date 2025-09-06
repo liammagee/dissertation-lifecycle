@@ -11,10 +11,31 @@
   <div class="form-check mb-3">
     {{ form.dry_run }} <label class="form-check-label" for="id_dry_run">Dry run (no changes)</label>
   </div>
+  <div class="form-check mb-2">
+    {{ form.create_missing_users }} <label class="form-check-label" for="id_create_missing_users">Create missing users</label>
+    <div class="text-muted small">Overrides Update only for users.</div>
+  </div>
+  <div class="form-check mb-3">
+    {{ form.create_missing_projects }} <label class="form-check-label" for="id_create_missing_projects">Create missing projects</label>
+    <div class="text-muted small">Overrides Update only for projects.</div>
+  </div>
   <button class="btn btn-primary" type="submit">Import</button>
   <a class="btn btn-outline-secondary" href="{% url 'advisor_export_import_csv' %}">Export (re‑importable) CSV</a>
   <a class="btn btn-outline-secondary" href="{% url 'advisor_import_template' %}">Download Template</a>
 </form>
+
+<div class="text-muted small mb-3">
+  <strong>How to import</strong>
+  <ol class="mb-0">
+    <li>Download the <a href="{% url 'advisor_import_template' %}">template CSV</a> or use the <a href="{% url 'advisor_export_import_csv' %}">re‑importable export</a> as a starting point.</li>
+    <li>Fill or update rows. Tips: set <code>apply_templates=1</code> for brand‑new projects; leave <code>password</code> blank to let students use password reset.</li>
+    <li>Choose <em>Update only</em> if you don’t want creations. Enable <em>Create missing users/projects</em> to allow specific creates.</li>
+    <li>Use <em>Dry run</em> to preview without writing changes.</li>
+    <li>Upload the file and click <em>Import</em>; review the results list for any issues.</li>
+  </ol>
+  <div class="mt-1">Columns: <code>username,email,title,apply_templates,status,password,display_name,new_title</code></div>
+  <div>Values: <code>apply_templates</code> accepts 1/true/yes; <code>status</code> is <code>active</code> or <code>archived</code>.</div>
+ </div>
 
 {% if results %}
   <div class="card">

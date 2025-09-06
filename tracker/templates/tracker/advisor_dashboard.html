@@ -1,4 +1,20 @@
 {% extends 'tracker/base.html' %}
+<div class="mb-2">
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_import' %}">Import CSV</a>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_export_import_csv' %}">Export (re‑importable) CSV</a>
+<div class="alert alert-light border d-flex justify-content-between align-items-center py-2 mb-2">
+  <div class="text-muted small">
+    <strong>Import/export tips:</strong>
+    <span class="ms-1">Use Export (re‑importable) as a starting point, edit rows, then import. Try Dry run first.</span>
+  </div>
+  <div class="btn-group btn-group-sm" role="group">
+    <a class="btn btn-outline-secondary" href="{% url 'advisor_import' %}">Import CSV</a>
+    <a class="btn btn-outline-secondary" href="{% url 'advisor_export_import_csv' %}">Export (re‑importable)</a>
+    <a class="btn btn-outline-secondary" href="{% url 'advisor_export_csv' %}">Export Summary</a>
+  </div>
+  </div>
+  <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_export_csv' %}">Export Summary CSV</a>
+</div>
 {% load vis %}
 {% block content %}
 <h2>Advisor Dashboard</h2>

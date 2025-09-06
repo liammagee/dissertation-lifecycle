@@ -303,6 +303,19 @@ Create volume
 fly volumes create data --size 1 --region den -a dissertation-lifecycle
 ```
 
+
+### Advisor Import/Export
+
+- Import page: `/advisor/import/` (advisor/admin)
+  - Upload CSV with columns: `username,email,title,apply_templates,status,password,display_name,new_title`.
+  - Options:
+    - Update only: updates existing users/projects; reports missing ones.
+    - Dry run: parses and reports without writing changes.
+    - Create missing users: allow creating users even if Update only is checked.
+    - Create missing projects: allow creating projects even if Update only is checked.
+  - Template CSV: `/advisor/import/template.csv`.
+- Export (re‑importable) CSV: `/advisor/export_import.csv` — can be fed back into the importer as‑is.
+- Export summary CSV/JSON: `/advisor/export.csv`, `/advisor/export.json` (read‑only snapshots).
 Minimal secrets (copy/paste and edit)
 ```
 fly secrets set \
