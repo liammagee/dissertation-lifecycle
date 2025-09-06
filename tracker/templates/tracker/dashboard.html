@@ -102,7 +102,12 @@
       <label class="form-label">Due ≤ days</label>
       <input class="form-control form-control-sm" type="number" min="1" name="due" value="{{ due }}" style="width:110px">
     </div>
+    <div>
+      <label class="form-label">Search</label>
+      <input class="form-control form-control-sm" type="text" name="q" value="{{ q }}" placeholder="Title or description" style="min-width:200px">
+    </div>
     <div class="ms-auto d-flex align-items-end gap-2">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'calendar_settings' %}"><i class="bi bi-calendar3 me-1"></i>Calendar</a>
       <a class="btn btn-sm btn-success" href="{% url 'task_new' %}"><i class="bi bi-plus-lg me-1"></i>New Task</a>
       <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
       <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard' %}">Clear</a>
@@ -165,6 +170,13 @@
     </div>
   </div>
   </div>
+<style>
+  /* Drag & drop polish */
+  tr.task-row { cursor: move; }
+  tr.task-row.dragging { opacity: .5; }
+  tr.task-row.drag-over-top { box-shadow: inset 0 3px 0 0 #0d6efd; }
+  tr.task-row.drag-over-bottom { box-shadow: inset 0 -3px 0 0 #0d6efd; }
+</style>
 <script>
   (function(){
     function rows(){ return Array.from(document.querySelectorAll('tr.task-row')); }
@@ -205,6 +217,88 @@
         t.classList.add('flash');
         setTimeout(function(){ t.classList.remove('flash'); }, 650);
       }
+    });
+  })();
+  // Drag-and-drop reorder/move with visual drop indicators (top/bottom)
+  (function(){
+    function csrf(){
+      var m = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      return m ? m.value : '';
+    }
+    var draggingId = null;
+    document.addEventListener('dragstart', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (!tr) return;
+      draggingId = tr.getAttribute('data-task-id');
+      e.dataTransfer.effectAllowed = 'move';
+      tr.classList.add('dragging');
+    });
+    document.addEventListener('dragend', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (tr) tr.classList.remove('dragging');
+      draggingId = null;
+    });
+    document.addEventListener('dragover', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (!tr) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var rect = tr.getBoundingClientRect();
+      var half = rect.top + rect.height/2;
+      var top = (e.clientY < half);
+      tr.classList.toggle('drag-over-top', top);
+      tr.classList.toggle('drag-over-bottom', !top);
+    });
+    document.addEventListener('dragleave', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (tr) { tr.classList.remove('drag-over-top'); tr.classList.remove('drag-over-bottom'); }
+    });
+    document.addEventListener('drop', function(e){
+      var targetRow = e.target.closest && e.target.closest('tr.task-row');
+      if (!targetRow || !draggingId) return;
+      e.preventDefault();
+      targetRow.classList.remove('drag-over-top');
+      targetRow.classList.remove('drag-over-bottom');
+
+      // Decide before/after based on cursor position (top half => before)
+      var rect = targetRow.getBoundingClientRect();
+      var insertBefore = e.clientY < (rect.top + rect.height/2);
+      var targetMilestoneId = targetRow.getAttribute('data-milestone-id');
+      var insertAfterId = targetRow.getAttribute('data-task-id');
+      if (insertBefore) {
+        // Use previous row id as insert_after when inserting before target
+        var prev = targetRow.previousElementSibling;
+        while (prev && !prev.classList.contains('task-row')) prev = prev.previousElementSibling;
+        insertAfterId = prev ? prev.getAttribute('data-task-id') : '';
+      }
+      // Prevent no-op (dropping on itself or same position)
+      if ((insertAfterId || '') === draggingId) return;
+
+      // Move in DOM immediately for instant feedback
+      var dragged = document.getElementById('task-' + draggingId);
+      if (!dragged) return;
+      if (insertBefore) {
+        targetRow.parentNode.insertBefore(dragged, targetRow);
+      } else {
+        targetRow.parentNode.insertBefore(dragged, targetRow.nextElementSibling);
+      }
+
+      var fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrf());
+      fd.append('task_id', draggingId);
+      fd.append('insert_after_id', insertAfterId);
+      fd.append('target_milestone_id', targetMilestoneId || '');
+      fetch('{% url "task_reorder" %}', {method:'POST', body: fd, headers: {'HX-Request': 'true'}})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+          // Replace the dragged row with server-rendered row (keeps UI in sync)
+          var current = document.getElementById('task-' + draggingId);
+          if (!current) return;
+          var temp = document.createElement('tbody'); temp.innerHTML = html.trim();
+          var fresh = temp.querySelector('tr.task-row');
+          if (fresh) current.replaceWith(fresh);
+        })
+        .catch(function(){ /* ignore */ });
     });
   })();
   </script>

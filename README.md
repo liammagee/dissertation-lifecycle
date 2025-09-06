@@ -274,6 +274,19 @@ Schedule it with your preferred mechanism:
   - You can also run it manually via the “Run workflow” UI with overrides.
 - Or any external scheduler that runs: `fly ssh console -C "python manage.py notify ..."`
 
+#### Optional Webhooks (Slack/Teams)
+
+- Set `SLACK_WEBHOOK_URL` and/or `TEAMS_WEBHOOK_URL` to post the advisor weekly digest to Slack/Teams in addition to email.
+- Messages are formatted nicely:
+  - Slack uses Blocks (header + sections with bullets).
+  - Teams uses an Office365 Connector card with a title and bullet list.
+- Posts are best‑effort; failures are ignored so email remains the source of truth.
+- Advisor weekly digest: grouped per project with key stats and upcoming due items.
+- Per‑event posts:
+  - Due‑soon summary (students with tasks due in the configured window)
+  - Inactivity summary (students without logs past the threshold)
+- Limit posted items with `WEBHOOK_MAX_LINES` (default 80).
+
 ### Backups
 
 - Students can download a ZIP of their data and attachments at `/export.zip` (after login).
@@ -287,6 +300,15 @@ Schedule it with your preferred mechanism:
   - `ALLOWED_HOSTS=your.domain,other.domain`
   - `CSRF_TRUSTED_ORIGINS=https://your.domain,https://other.domain`
 - On Fly.io, defaults allow `*.fly.dev`. Set `FLY_APP_NAME` to your app for ALLOWED_HOSTS default.
+
+### Calendar Feeds (ICS)
+
+- Student due‑dates feed (requires login): `/calendar.ics` — includes To Do/Doing tasks with a due date as all‑day events.
+- Advisor due‑dates feed (requires advisor/admin login): `/advisor/calendar.ics?days=60` — upcoming tasks across students.
+- Tokenized feeds for external calendar apps: each user has a secret token URL.
+  - Student token feed: `/calendar/token/<token>.ics`
+  - Advisor token feed: `/advisor/calendar/token/<token>.ics?days=60`
+  - Manage tokens and copy URLs at `/calendar/settings/` (rotate to invalidate old links).
 
 ## Production Deploy (Fly.io)
 

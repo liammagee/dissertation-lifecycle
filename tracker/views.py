@@ -190,6 +190,11 @@ def dashboard(request):
             pass
     if request.GET.get('drafts') == '1':
         qs = qs.filter(title__icontains='draft')
+    # Simple search by title/description
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
     milestone_id = request.GET.get('milestone')
     if milestone_id:
         try:
@@ -324,6 +329,7 @@ def dashboard(request):
         'drafts': request.GET.get('drafts') == '1',
         'milestone_id': milestone_id or '',
         'milestones': project.milestones.all(),
+        'q': q,
         # tasks now carry task.effort_pct
     })
 
@@ -620,6 +626,177 @@ def task_move(request, pk: int, direction: str):
 
 
 @login_required
+def task_reorder(request):
+    """Reorder (and optionally move) a task via DnD.
+
+    POST params:
+    - task_id: int (required)
+    - insert_after_id: int | '' (optional; if not provided, append to end)
+    - target_milestone_id: int | '' (optional; if provided, move to that milestone first)
+    """
+    if request.method != 'POST':
+        return redirect('dashboard')
+    try:
+        task_id = int(request.POST.get('task_id'))
+    except Exception:
+        return JsonResponse({'error': 'invalid task_id'}, status=400)
+    insert_after_id = request.POST.get('insert_after_id')
+    try:
+        insert_after_id = int(insert_after_id) if insert_after_id else None
+    except Exception:
+        insert_after_id = None
+    target_mid = request.POST.get('target_milestone_id')
+    try:
+        target_mid = int(target_mid) if target_mid else None
+    except Exception:
+        target_mid = None
+    # Fetch owned task
+    task = get_object_or_404(Task.objects.select_related('milestone', 'project'), pk=task_id, project__student=request.user)
+    with transaction.atomic():
+        # If moving to another milestone
+        if target_mid and (not task.milestone or task.milestone_id != target_mid):
+            try:
+                target_m = task.project.milestones.get(pk=target_mid)
+            except Exception:
+                target_m = None
+            if target_m:
+                task.milestone = target_m
+                # place at end initially
+                try:
+                    agg = Task.objects.filter(project=task.project, milestone=target_m).aggregate(max_order=Max('order'))
+                    max_order = int(agg.get('max_order') or 0)
+                except Exception:
+                    max_order = 0
+                task.order = max_order + 1
+                task.save(update_fields=['milestone', 'order'])
+        # Now reorder within target/current milestone
+        siblings = list(Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk'))
+        # Build new order list with task placed after insert_after_id (or at end)
+        ids = [s.pk for s in siblings if s.pk != task.pk]
+        if insert_after_id and insert_after_id in ids:
+            idx = ids.index(insert_after_id) + 1
+            ids.insert(idx, task.pk)
+        else:
+            ids.append(task.pk)
+        for idx, tpk in enumerate(ids, start=1):
+            if tpk == task.pk and task.order != idx:
+                Task.objects.filter(pk=tpk).update(order=idx)
+                task.order = idx
+            elif tpk != task.pk:
+                Task.objects.filter(pk=tpk).update(order=idx)
+    # Return updated row for HTMX partial replacement if requested
+    if request.headers.get('HX-Request'):
+        try:
+            weights = get_progress_weights()
+            task.refresh_from_db()
+            task.effort_pct = task_effort(task)[2]
+            task.combined_pct = task_combined_percent(task, weights)
+            # can_move flags after reorder
+            siblings = list(
+                Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk').values_list('pk', flat=True)
+            )
+            idx = siblings.index(task.pk)
+            task.can_move_up = idx > 0
+            task.can_move_down = idx < len(siblings) - 1
+        except Exception:
+            task.effort_pct = 0
+            task.combined_pct = 0
+            task.can_move_up = task.can_move_down = False
+        show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+        return render(request, 'tracker/partials/task_row.html', {'task': task, 'show_effort': show_effort})
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def calendar_ics(request):
+    """ICS calendar feed for the current student's due tasks (login required).
+
+    Includes TODO/DOING tasks with a due_date, as all-day events.
+    """
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar')
+    tasks = project.tasks.select_related('milestone').filter(due_date__isnull=False, status__in=['todo', 'doing']).order_by('due_date', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in tasks:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{title}"
+        desc = f"Milestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+@login_required
+def advisor_calendar_ics(request):
+    """ICS calendar feed for advisors/admins showing upcoming student task due dates.
+
+    Query params:
+      - days: window forward in days (default 60)
+    """
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    try:
+        days = int(request.GET.get('days', '60'))
+    except Exception:
+        days = 60
+    today = date.today()
+    latest = today + timedelta(days=max(1, days))
+    qs = Task.objects.select_related('project__student', 'milestone').filter(
+        due_date__gte=today,
+        due_date__lte=latest,
+        status__in=['todo', 'doing'],
+        project__status='active',
+    ).order_by('due_date', 'project__student__username', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in qs:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        student = t.project.student.get_username() if t.project and t.project.student else 'student'
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{student}: {title}"
+        desc = f"Project: {t.project.title if t.project else ''}\\nMilestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:adv-task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+@login_required
 def task_guidance(request, pk: int):
     task = get_object_or_404(Task.objects.select_related('template'), pk=pk, project__student=request.user)
     tpl = task.template
@@ -685,6 +862,132 @@ def edit_document(request, pk: int):
     else:
         form = DocumentNotesForm(instance=doc)
     return render(request, 'tracker/document_form.html', {'form': form, 'doc': doc})
+
+
+# Public ICS feeds using per-user tokens and a simple settings page to manage tokens
+def calendar_ics_token(request, token: str):
+    """Public ICS via per-user token (student)."""
+    profile = Profile.objects.filter(student_calendar_token=token, role='student').select_related('user').first()
+    if not profile:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar', status=404)
+    user = profile.user
+    project = Project.objects.filter(student=user, status='active').first()
+    if not project:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar')
+    tasks = project.tasks.select_related('milestone').filter(due_date__isnull=False, status__in=['todo', 'doing']).order_by('due_date', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in tasks:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{title}"
+        desc = f"Milestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+def advisor_calendar_ics_token(request, token: str):
+    """Public ICS via per-user token (advisor/admin aggregate)."""
+    profile = Profile.objects.filter(advisor_calendar_token=token, role__in=['advisor', 'admin']).select_related('user').first()
+    if not profile:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar', status=404)
+    try:
+        days = int(request.GET.get('days', '60'))
+    except Exception:
+        days = 60
+    today = date.today()
+    latest = today + timedelta(days=max(1, days))
+    qs = Task.objects.select_related('project__student', 'milestone').filter(
+        due_date__gte=today,
+        due_date__lte=latest,
+        status__in=['todo', 'doing'],
+        project__status='active',
+    ).order_by('due_date', 'project__student__username', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in qs:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        student = t.project.student.get_username() if t.project and t.project.student else 'student'
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{student}: {title}"
+        desc = f"Project: {t.project.title if t.project else ''}\\nMilestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:adv-task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+@login_required
+def calendar_settings(request):
+    """Simple page to view and rotate ICS calendar tokens and URLs."""
+    prof = Profile.objects.select_related('user').filter(user=request.user).first()
+    if not prof:
+        prof = Profile.objects.create(user=request.user, role='student')
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action in ('rotate', 'rotate_student'):
+            prof.rotate_student_token()
+            messages.success(request, 'Calendar token rotated.')
+            return redirect('calendar_settings')
+        if action == 'rotate_advisor' and prof.role in ('advisor', 'admin'):
+            prof.rotate_advisor_token()
+            messages.success(request, 'Advisor calendar token rotated.')
+            return redirect('calendar_settings')
+    # Ensure token exists for display
+    # Ensure relevant tokens exist for display
+    stoken = prof.ensure_student_token()
+    atoken = prof.ensure_advisor_token() if prof.role in ('advisor', 'admin') else ''
+    # Build absolute URLs
+    try:
+        from django.urls import reverse
+        student_token_url = request.build_absolute_uri(reverse('calendar_ics_token', args=[stoken]))
+        student_login_url = request.build_absolute_uri(reverse('calendar_ics'))
+        advisor_token_url = request.build_absolute_uri(reverse('advisor_calendar_ics_token', args=[atoken])) if atoken else ''
+        advisor_login_url = request.build_absolute_uri(reverse('advisor_calendar_ics')) if prof.role in ('advisor', 'admin') else ''
+    except Exception:
+        student_token_url = f"/calendar/token/{stoken}.ics"
+        student_login_url = "/calendar.ics"
+        advisor_token_url = f"/advisor/calendar/token/{atoken}.ics" if atoken else ''
+        advisor_login_url = "/advisor/calendar.ics" if prof.role in ('advisor', 'admin') else ''
+    return render(request, 'tracker/calendar_settings.html', {
+        'profile': prof,
+        'student_token_url': student_token_url,
+        'student_login_url': student_login_url,
+        'advisor_token_url': advisor_token_url,
+        'advisor_login_url': advisor_login_url,
+    })
 
 
 @login_required
@@ -1452,8 +1755,10 @@ def advisor_import(request):
                 u_created = False
                 update_only = bool(form.cleaned_data.get('update_only'))
                 dry_run = bool(form.cleaned_data.get('dry_run'))
+                allow_user_create = bool(form.cleaned_data.get('create_missing_users'))
+                allow_project_create = bool(form.cleaned_data.get('create_missing_projects'))
                 if not user:
-                    if update_only:
+                    if update_only and not allow_user_create:
                         results.append(('error', f"User missing (update-only): {uname}"))
                         continue
                     user = User(username=uname, email=email)
@@ -1483,7 +1788,7 @@ def advisor_import(request):
                 proj = Project.objects.filter(student=user, title=title).first()
                 p_created = False
                 if not proj:
-                    if update_only:
+                    if update_only and not allow_project_create:
                         results.append(('error', f"Project missing (update-only): {uname} / {title}"))
                         continue
                     proj = Project(student=user, title=title, status=status)

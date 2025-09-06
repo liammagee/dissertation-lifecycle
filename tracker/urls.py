@@ -47,4 +47,12 @@ urlpatterns = [
     path('advisor/export_import.csv', views.advisor_export_import_csv, name='advisor_export_import_csv'),
     path('advisor/import/', views.advisor_import, name='advisor_import'),
     path('advisor/import/template.csv', views.advisor_import_template, name='advisor_import_template'),
+    # ICS calendar feeds
+    path('calendar.ics', views.calendar_ics, name='calendar_ics'),
+    path('advisor/calendar.ics', views.advisor_calendar_ics, name='advisor_calendar_ics'),
+    path('calendar/token/<str:token>.ics', views.calendar_ics_token, name='calendar_ics_token'),
+    path('advisor/calendar/token/<str:token>.ics', views.advisor_calendar_ics_token, name='advisor_calendar_ics_token'),
+    path('calendar/settings/', views.calendar_settings, name='calendar_settings'),
+    # Drag-and-drop reorder/move
+    path('tasks/reorder/', views.task_reorder, name='task_reorder'),
 ]

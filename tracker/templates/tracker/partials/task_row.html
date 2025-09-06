@@ -1,5 +1,5 @@
 {% load vis %}
-<tr id="task-{{ task.pk }}" class="task-row" tabindex="0" data-task-id="{{ task.pk }}">
+<tr id="task-{{ task.pk }}" class="task-row" tabindex="0" data-task-id="{{ task.pk }}" data-milestone-id="{{ task.milestone.id }}" draggable="true">
   <td>{{ task.milestone.name }}</td>
   <td>
     <div class="task-grid{% if show_effort %} full{% endif %}">

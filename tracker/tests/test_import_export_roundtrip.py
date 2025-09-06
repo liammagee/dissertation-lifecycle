@@ -41,3 +41,47 @@ class ImportExportRoundTripTests(TestCase):
         # Verify basic fields remain the same
         self.assertEqual(Project.objects.get(title="P1").status, "active")
         self.assertEqual(Project.objects.get(title="P2").status, "archived")
+
+    def test_import_create_missing_overrides_update_only(self):
+        rows = [
+            'username,email,title,apply_templates,status,password,display_name,new_title',
+            'newuser,new@example.com,New Project,1,active,,New User,',
+        ]
+        content = "\n".join(rows)
+        import_url = reverse("advisor_import")
+        f = io.BytesIO(content.encode("utf-8")); f.name = "import.csv"
+        resp = self.client.post(
+            import_url,
+            {
+                "file": f,
+                "update_only": "on",
+                "create_missing_users": "on",
+                "create_missing_projects": "on",
+            },
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(User.objects.filter(username="newuser").exists())
+        u = User.objects.get(username="newuser")
+        self.assertTrue(Project.objects.filter(student=u, title="New Project").exists())
+
+    def test_import_dry_run_no_changes(self):
+        rows = [
+            'username,email,title,apply_templates,status,password,display_name,new_title',
+            'dryuser,dry@example.com,Dry Project,1,active,,Dry User,',
+        ]
+        content = "\n".join(rows)
+        import_url = reverse("advisor_import")
+        f = io.BytesIO(content.encode("utf-8")); f.name = "dry.csv"
+        resp = self.client.post(
+            import_url,
+            {
+                "file": f,
+                "dry_run": "on",
+                "create_missing_users": "on",
+                "create_missing_projects": "on",
+            },
+            format="multipart",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(User.objects.filter(username="dryuser").exists())

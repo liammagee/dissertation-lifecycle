@@ -165,6 +165,12 @@ EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', '1') == '1'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', '0') == '1'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@example.com')
 
+# Optional webhooks for advisor digests/alerts
+SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
+TEAMS_WEBHOOK_URL = os.getenv('TEAMS_WEBHOOK_URL', '')
+# Optional: limit lines posted to webhooks
+WEBHOOK_MAX_LINES = int(os.getenv('WEBHOOK_MAX_LINES', '80'))
+
 # Security in production
 if not DEBUG:
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', '1') == '1'

@@ -17,7 +17,12 @@
 </div>
 {% load vis %}
 {% block content %}
-<h2>Advisor Dashboard</h2>
+<h2 class="d-flex align-items-center justify-content-between">
+  <span>Advisor Dashboard</span>
+  <span class="d-flex gap-2">
+    <a class="btn btn-sm btn-outline-secondary" href="{% url 'calendar_settings' %}"><i class="bi bi-calendar3 me-1"></i>Calendar</a>
+  </span>
+</h2>
 <form method="get" class="row g-2 align-items-end mb-2">
   <div class="col-auto">
     <label class="form-label">Search</label>
