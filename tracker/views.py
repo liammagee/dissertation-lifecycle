@@ -673,7 +673,9 @@ def task_reorder(request):
         siblings = list(Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk'))
         # Build new order list with task placed after insert_after_id (or at end)
         ids = [s.pk for s in siblings if s.pk != task.pk]
-        if insert_after_id and insert_after_id in ids:
+        if position == 'top':
+            ids.insert(0, task.pk)
+        elif insert_after_id and insert_after_id in ids:
             idx = ids.index(insert_after_id) + 1
             ids.insert(idx, task.pk)
         else:
@@ -1843,5 +1845,6 @@ def advisor_export_import_csv(request):
             '',  # password
             display,
             '',  # new_title
+    position = (request.POST.get('position') or '').strip()
         ])
     return resp
