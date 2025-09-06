@@ -1511,3 +1511,32 @@ def advisor_import(request):
     else:
         form = AdvisorImportForm()
     return render(request, 'tracker/advisor_import.html', {'form': form, 'results': results})
+
+
+@login_required
+def advisor_export_import_csv(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename="advisor_export_import.csv"'
+    w = csv.writer(resp)
+    # Export in a format that can be re-imported directly
+    w.writerow(['username', 'email', 'title', 'apply_templates', 'status', 'password', 'display_name', 'new_title'])
+    for p in Project.objects.select_related('student').all():
+        user = p.student
+        prof = getattr(user, 'profile', None)
+        display = getattr(prof, 'display_name', '') if prof else ''
+        w.writerow([
+            user.get_username(),
+            user.email or '',
+            p.title,
+            '',  # apply_templates
+            p.status,
+            '',  # password
+            display,
+            '',  # new_title
+        ])
+    return resp

@@ -12,7 +12,7 @@
     {{ form.dry_run }} <label class="form-check-label" for="id_dry_run">Dry run (no changes)</label>
   </div>
   <button class="btn btn-primary" type="submit">Import</button>
-  <a class="btn btn-outline-secondary" href="{% url 'advisor_export_csv' %}">Export CSV</a>
+  <a class="btn btn-outline-secondary" href="{% url 'advisor_export_import_csv' %}">Export (re‑importable) CSV</a>
   <a class="btn btn-outline-secondary" href="{% url 'advisor_import_template' %}">Download Template</a>
 </form>
 

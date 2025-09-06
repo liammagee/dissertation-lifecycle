@@ -44,6 +44,7 @@ urlpatterns = [
     path('advisor/projects/<int:pk>/wordlogs.csv', views.advisor_project_wordlogs_csv, name='advisor_project_wordlogs_csv'),
     path('advisor/export.json', views.advisor_export_json, name='advisor_export_json'),
     path('advisor/export.csv', views.advisor_export_csv, name='advisor_export_csv'),
+    path('advisor/export_import.csv', views.advisor_export_import_csv, name='advisor_export_import_csv'),
     path('advisor/import/', views.advisor_import, name='advisor_import'),
     path('advisor/import/template.csv', views.advisor_import_template, name='advisor_import_template'),
 ]
