@@ -10,9 +10,9 @@ Quick links to project documentation and operational guides.
   <h1>Dissertation Lifecycle</h1>
   <p class="tagline">Track milestones, writing progress, documents and advisor feedback.</p>
   <div class="buttons">
-    <a class="md-button md-button--primary" href="ops.md">Operations Runbook</a>
-    <a class="md-button" href="roadmap.md">Roadmap</a>
-    <a class="md-button" href="adr/0001-architecture.md">Architecture</a>
+    <a class="md-button md-button--primary" href="ops/">Operations Runbook</a>
+    <a class="md-button" href="roadmap/">Roadmap</a>
+    <a class="md-button" href="adr/0001-architecture/">Architecture</a>
   </div>
 </div>
 
