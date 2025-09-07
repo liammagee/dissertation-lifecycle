@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Iterable, Tuple
 from django.db import models as dj_models
 
-from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task
+from .models import MilestoneTemplate, TaskTemplate, Project, Milestone, Task, AppSettings
+from django.conf import settings
 
 
 def apply_templates_to_project(project: Project, include_phd: bool = False, include_detailed: bool = False) -> None:
@@ -41,18 +42,18 @@ def apply_templates_to_project(project: Project, include_phd: bool = False, incl
             # Heuristics to set default word targets for literature reviews
             target = 0
             title_lower = tt.title.lower()
-            if mt.key == 'chapter2-general':
+            if mt.key in ('chapter2-general', 'core-literature-review-general'):
                 if 'start general field writing' in title_lower:
                     target = 5500
                 if 'goal' in title_lower and '5000' in title_lower:
                     target = 5500
-            if mt.key == 'chapter2-special':
+            if mt.key in ('chapter2-special', 'core-literature-review-special'):
                 if 'start special field writing' in title_lower:
                     target = 4500
                 if 'goal' in title_lower and '4000' in title_lower:
                     target = 4500
             # Core literature review default target for Draft
-            if mt.key == 'core-literature-review':
+            if mt.key in ('core-literature-review', 'core-literature-review-general', 'core-literature-review-special'):
                 if 'draft literature review' in title_lower:
                     target = 5500
             # Core methodology/findings/conclusion default targets for Draft
@@ -129,12 +130,27 @@ def task_effort(task: Task) -> Tuple[int, int, int]:
     return words, target, percent
 
 
+def get_progress_weights() -> dict:
+    """Return current global weights as a dict {'status': int, 'effort': int}.
+
+    Defaults to status=100, effort=0 so effort is hidden by default.
+    """
+    try:
+        s = AppSettings.get()
+        return {'status': int(s.status_weight or 0), 'effort': int(s.effort_weight or 0)}
+    except Exception:
+        return {'status': 100, 'effort': 0}
+
+
 def task_combined_percent(task: Task, weights: dict | None = None) -> int:
-    weights = weights or {'status': 70, 'effort': 30}
+    # In simple mode, ignore effort entirely and use status only
+    if getattr(settings, 'SIMPLE_PROGRESS_MODE', False):
+        return task_status_percent(task)
+    weights = weights or get_progress_weights()
     sp = task_status_percent(task)
     _, __, ep = task_effort(task)
-    tot = max(1, int(weights.get('status', 70)) + int(weights.get('effort', 30)))
-    return int(round((int(weights.get('status', 70)) * sp + int(weights.get('effort', 30)) * ep) / tot))
+    tot = max(1, int(weights.get('status', 0)) + int(weights.get('effort', 0)))
+    return int(round((int(weights.get('status', 0)) * sp + int(weights.get('effort', 0)) * ep) / tot))
 
 
 def compute_badges(project: Project) -> list[str]:

@@ -40,103 +40,106 @@
  </div>
 {% endif %}
 
-<div class="mb-4 d-flex justify-content-between align-items-center">
-  <h5>Radar Overview</h5>
-  <a class="btn btn-sm btn-outline-success" href="{% url 'task_new' %}">+ New Task</a>
-  <form method="get" class="row g-2 align-items-end mb-2">
-    <input type="hidden" name="update_radar" value="1" />
-    <div class="col-auto form-check">
-      <input class="form-check-input" type="checkbox" id="f_grid" name="show_grid" value="1" {% if radar_show_grid %}checked{% endif %}>
-      <label for="f_grid" class="form-check-label">Show grid</label>
-    </div>
-    <div class="col-auto form-check">
-      <input class="form-check-input" type="checkbox" id="f_labels" name="show_labels" value="1" {% if radar_show_labels %}checked{% endif %}>
-      <label for="f_labels" class="form-check-label">Show labels</label>
-    </div>
-    <div class="col-auto">
-      <label for="f_speed" class="form-label">Sweep speed (s)</label>
-      <input type="number" min="1" max="20" class="form-control" id="f_speed" name="speed" value="{{ radar_speed }}">
-    </div>
-    <div class="col-auto">
-      <button class="btn btn-outline-primary" type="submit">Update</button>
-    </div>
-  </form>
+<div class="mb-4">
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+    <a class="muted-link" data-bs-toggle="collapse" href="#radar-controls" role="button" aria-expanded="false" aria-controls="radar-controls">
+      <i class="bi bi-gear me-1"></i>Configure radar
+    </a>
+  </div>
+  <div class="collapse" id="radar-controls">
+    <form method="get" class="row g-2 align-items-end mb-2">
+      <input type="hidden" name="update_radar" value="1" />
+      <div class="col-auto form-check">
+        <input class="form-check-input" type="checkbox" id="f_grid" name="show_grid" value="1" {% if radar_show_grid %}checked{% endif %}>
+        <label for="f_grid" class="form-check-label">Show grid</label>
+      </div>
+      <div class="col-auto form-check">
+        <input class="form-check-input" type="checkbox" id="f_labels" name="show_labels" value="1" {% if radar_show_labels %}checked{% endif %}>
+        <label for="f_labels" class="form-check-label">Show labels</label>
+      </div>
+      <div class="col-auto">
+        <label for="f_speed" class="form-label">Sweep speed (s)</label>
+        <input type="number" min="1" max="20" class="form-control" id="f_speed" name="speed" value="{{ radar_speed }}">
+      </div>
+      <div class="col-auto">
+        <button class="btn btn-outline-primary" type="submit">Update</button>
+      </div>
+    </form>
+  </div>
   {% radar radar_points 320 18 radar_show_grid radar_show_labels radar_speed %}
-  <div class="text-muted small mt-2">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
+  <div class="text-muted small mt-1">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
 </div>
 
 <form method="get" class="mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
-  <div class="row g-2 align-items-end">
-    <div class="col-auto">
+  <div class="toolbar">
+    <div>
       <label class="form-label">Status</label>
-      <select name="status" class="form-select form-select-sm">
+      <select name="status" class="form-select form-select-sm" style="min-width:120px">
         <option value="">All</option>
         <option value="todo" {% if status_filter == 'todo' %}selected{% endif %}>To Do</option>
         <option value="doing" {% if status_filter == 'doing' %}selected{% endif %}>Doing</option>
         <option value="done" {% if status_filter == 'done' %}selected{% endif %}>Done</option>
       </select>
     </div>
-    <div class="col-auto">
+    <div>
       <label class="form-label">Milestone</label>
-      <select name="milestone" class="form-select form-select-sm">
+      <select name="milestone" class="form-select form-select-sm" style="min-width:180px">
         <option value="">All</option>
         {% for m in milestones %}
           <option value="{{ m.id }}" {% if milestone_id|add:'' == m.id|add:'' %}selected{% endif %}>{{ m.name }}</option>
         {% endfor %}
       </select>
     </div>
-    <div class="col-auto form-check mt-4">
+    <div class="form-check align-self-center">
       <input class="form-check-input" type="checkbox" id="s_has_target" name="has_target" value="1" {% if has_target %}checked{% endif %}>
       <label for="s_has_target" class="form-check-label">Has target</label>
     </div>
-    <div class="col-auto form-check mt-4">
+    <div class="form-check align-self-center">
       <input class="form-check-input" type="checkbox" id="s_drafts" name="drafts" value="1" {% if drafts %}checked{% endif %}>
       <label for="s_drafts" class="form-check-label">Drafts</label>
     </div>
-    <div class="col-auto">
+    <div>
       <label class="form-label">Due ≤ days</label>
-      <input class="form-control form-control-sm" type="number" min="1" name="due" value="{{ due }}">
+      <input class="form-control form-control-sm" type="number" min="1" name="due" value="{{ due }}" style="width:110px">
     </div>
-    <div class="col-auto">
-      <button class="btn btn-sm btn-outline-primary" type="submit">Filter</button>
+    <div>
+      <label class="form-label">Search</label>
+      <input class="form-control form-control-sm" type="text" name="q" value="{{ q }}" placeholder="Title or description" style="min-width:200px">
+    </div>
+    <div class="ms-auto d-flex align-items-end gap-2">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'calendar_settings' %}"><i class="bi bi-calendar3 me-1"></i>Calendar</a>
+      <a class="btn btn-sm btn-success" href="{% url 'task_new' %}"><i class="bi bi-plus-lg me-1"></i>New Task</a>
+      <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel me-1"></i>Filter</button>
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'dashboard' %}">Clear</a>
     </div>
   </div>
  </form>
- <div class="mb-2"><a class="small" href="{% url "dashboard" %}">Clear filters</a></div>
 
 <!-- Weighting controls just above the task list -->
 <div class="d-flex align-items-center justify-content-end mb-1">
   <div id="tasks-spinner" class="spinner-border spinner-border-sm text-secondary" role="status" style="display:none"><span class="visually-hidden">Loading…</span></div>
 </div>
 <div id="tasks-section">
-<form method="get" class="row g-2 align-items-end mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
-  <div class="col-auto">
-    <label for="w_status" class="form-label">Status weight (%)
-      <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much the task’s status contributes (To Do=0, Doing=50, Done=100).">i</span>
-    </label>
-    <input type="number" min="0" class="form-control" id="w_status" name="w_status" value="{{ w_status|default:70 }}">
-  </div>
-  <div class="col-auto">
-    <label for="w_effort" class="form-label">Effort weight (%)
-      <span class="tip ms-1" tabindex="0" data-bs-toggle="tooltip" data-bs-placement="top" title="How much writing effort contributes (words logged ÷ word target, capped at 100%).">i</span>
-    </label>
-    <input type="number" min="0" class="form-control" id="w_effort" name="w_effort" value="{{ w_effort|default:30 }}">
-  </div>
-  <div class="col-auto">
-    <input type="hidden" name="update_weights" value="1" />
-    <button class="btn btn-outline-primary" type="submit">Update weighting</button>
-  </div>
-</form>
-<div class="text-muted small mb-3">
-  Status weight: how much the task’s status contributes (To&nbsp;Do=0, Doing=50, Done=100). Effort weight: how much writing effort contributes (words logged ÷ word target, capped at 100%). Combined = weighted average normalized by their sum. Milestone % is the average of task Combined values. Effort badge colors: <span class="badge text-bg-danger">&lt;30%</span>, <span class="badge text-bg-warning">30–74%</span>, <span class="badge text-bg-success">≥75%</span>.
+{% if show_effort %}
+<div class="section-note mb-3">
+  Status: To&nbsp;Do=0, Doing=50, Done=100. Effort: words logged ÷ word target (max 100%). Combined is the weighted average. Weights are managed by the administrator.
+</div>
+{% endif %}
 </div>
 
-<table class="table table-sm align-middle">
+<table class="table table-sm table-hover align-middle task-table">
   <thead>
-    <tr><th>Milestone</th><th>Task</th><th>Due</th><th>Status</th></tr>
+    <tr><th>Milestone</th><th>Task</th><th>Due</th><th>Progress</th><th>Status</th></tr>
   </thead>
   <tbody>
     {% for task in tasks %}
+      {% ifchanged task.milestone.id %}
+        <tr class="milestone-drop" data-milestone-id="{{ task.milestone.id }}">
+          <td colspan="5">
+            <div class="drop-target">Drop here to move to start of <strong>{{ task.milestone.name }}</strong></div>
+          </td>
+        </tr>
+      {% endifchanged %}
       {% include 'tracker/partials/task_row.html' with task=task %}
     {% empty %}
       <tr><td colspan="4" class="text-muted">No tasks yet.</td></tr>
@@ -174,6 +177,16 @@
     </div>
   </div>
   </div>
+<style>
+  /* Drag & drop polish */
+  tr.task-row { cursor: move; }
+  tr.task-row.dragging { opacity: .5; }
+  tr.task-row.drag-over-top { box-shadow: inset 0 3px 0 0 #0d6efd; }
+  tr.task-row.drag-over-bottom { box-shadow: inset 0 -3px 0 0 #0d6efd; }
+  tr.milestone-drop td { padding: .3rem .5rem; }
+  tr.milestone-drop .drop-target { border: 2px dashed #6c757d; border-radius: 6px; padding: .25rem .5rem; color: #6c757d; text-align: center; background: rgba(108,117,125,.05); }
+  tr.milestone-drop.drag-over .drop-target { border-color: #0d6efd; color: #0d6efd; background: rgba(13,110,253,.05); }
+</style>
 <script>
   (function(){
     function rows(){ return Array.from(document.querySelectorAll('tr.task-row')); }
@@ -214,6 +227,132 @@
         t.classList.add('flash');
         setTimeout(function(){ t.classList.remove('flash'); }, 650);
       }
+    });
+  })();
+  // Drag-and-drop reorder/move with visual drop indicators (top/bottom)
+  (function(){
+    function csrf(){
+      var m = document.querySelector('input[name="csrfmiddlewaretoken"]');
+      return m ? m.value : '';
+    }
+    var draggingId = null;
+    document.addEventListener('dragstart', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (!tr) return;
+      draggingId = tr.getAttribute('data-task-id');
+      e.dataTransfer.effectAllowed = 'move';
+      tr.classList.add('dragging');
+    });
+    document.addEventListener('dragend', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (tr) tr.classList.remove('dragging');
+      draggingId = null;
+    });
+    document.addEventListener('dragover', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (!tr) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      var rect = tr.getBoundingClientRect();
+      var half = rect.top + rect.height/2;
+      var top = (e.clientY < half);
+      tr.classList.toggle('drag-over-top', top);
+      tr.classList.toggle('drag-over-bottom', !top);
+    });
+    document.addEventListener('dragleave', function(e){
+      var tr = e.target.closest && e.target.closest('tr.task-row');
+      if (tr) { tr.classList.remove('drag-over-top'); tr.classList.remove('drag-over-bottom'); }
+    });
+    document.addEventListener('drop', function(e){
+      var targetRow = e.target.closest && e.target.closest('tr.task-row');
+      if (!targetRow || !draggingId) return;
+      e.preventDefault();
+      targetRow.classList.remove('drag-over-top');
+      targetRow.classList.remove('drag-over-bottom');
+
+      // Decide before/after based on cursor position (top half => before)
+      var rect = targetRow.getBoundingClientRect();
+      var insertBefore = e.clientY < (rect.top + rect.height/2);
+      var targetMilestoneId = targetRow.getAttribute('data-milestone-id');
+      var insertAfterId = targetRow.getAttribute('data-task-id');
+      if (insertBefore) {
+        // Use previous row id as insert_after when inserting before target
+        var prev = targetRow.previousElementSibling;
+        while (prev && !prev.classList.contains('task-row')) prev = prev.previousElementSibling;
+        insertAfterId = prev ? prev.getAttribute('data-task-id') : '';
+      }
+      // Prevent no-op (dropping on itself or same position)
+      if ((insertAfterId || '') === draggingId) return;
+
+      // Move in DOM immediately for instant feedback
+      var dragged = document.getElementById('task-' + draggingId);
+      if (!dragged) return;
+      if (insertBefore) {
+        targetRow.parentNode.insertBefore(dragged, targetRow);
+      } else {
+        targetRow.parentNode.insertBefore(dragged, targetRow.nextElementSibling);
+      }
+
+      var fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrf());
+      fd.append('task_id', draggingId);
+      fd.append('insert_after_id', insertAfterId);
+      fd.append('target_milestone_id', targetMilestoneId || '');
+      fetch('{% url "task_reorder" %}', {method:'POST', body: fd, headers: {'HX-Request': 'true'}})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+          // Replace the dragged row with server-rendered row (keeps UI in sync)
+          var current = document.getElementById('task-' + draggingId);
+          if (!current) return;
+          var temp = document.createElement('tbody'); temp.innerHTML = html.trim();
+          var fresh = temp.querySelector('tr.task-row');
+          if (fresh) current.replaceWith(fresh);
+          // Refresh tasks section via HTMX form submit to sync neighbor controls
+          var filterForm = document.querySelector('form[method="get"][hx-get]');
+          if (filterForm && window.htmx) { filterForm.requestSubmit(); }
+        })
+        .catch(function(){ /* ignore */ });
+    });
+
+    // Milestone drop zones: move to start of the milestone
+    document.addEventListener('dragover', function(e){
+      var dz = e.target.closest && e.target.closest('tr.milestone-drop');
+      if (!dz) return;
+      e.preventDefault();
+      dz.classList.add('drag-over');
+    });
+    document.addEventListener('dragleave', function(e){
+      var dz = e.target.closest && e.target.closest('tr.milestone-drop');
+      if (dz) dz.classList.remove('drag-over');
+    });
+    document.addEventListener('drop', function(e){
+      var dz = e.target.closest && e.target.closest('tr.milestone-drop');
+      if (!dz || !draggingId) return;
+      e.preventDefault();
+      dz.classList.remove('drag-over');
+      var targetMilestoneId = dz.getAttribute('data-milestone-id');
+      // Move in DOM before the first task row for this milestone
+      var first = document.querySelector('tr.task-row[data-milestone-id="' + targetMilestoneId + '"]');
+      var dragged = document.getElementById('task-' + draggingId);
+      if (first && dragged) { first.parentNode.insertBefore(dragged, first); }
+      var fd = new FormData();
+      fd.append('csrfmiddlewaretoken', csrf());
+      fd.append('task_id', draggingId);
+      fd.append('insert_after_id', '');
+      fd.append('target_milestone_id', targetMilestoneId || '');
+      fd.append('position', 'top');
+      fetch('{% url "task_reorder" %}', {method:'POST', body: fd, headers: {'HX-Request': 'true'}})
+        .then(function(r){ return r.text(); })
+        .then(function(html){
+          var current = document.getElementById('task-' + draggingId);
+          if (!current) return;
+          var temp = document.createElement('tbody'); temp.innerHTML = html.trim();
+          var fresh = temp.querySelector('tr.task-row');
+          if (fresh) current.replaceWith(fresh);
+          var filterForm = document.querySelector('form[method="get"][hx-get]');
+          if (filterForm && window.htmx) { filterForm.requestSubmit(); }
+        })
+        .catch(function(){ /* ignore */ });
     });
   })();
   </script>

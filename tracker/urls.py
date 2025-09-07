@@ -8,11 +8,14 @@ urlpatterns = [
     path('password-reset/done/', auth_views.PasswordResetDoneView.as_view(template_name='tracker/password_reset_done.html'), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(template_name='tracker/password_reset_confirm.html'), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(template_name='tracker/password_reset_complete.html'), name='password_reset_complete'),
+    path('password-change/', auth_views.PasswordChangeView.as_view(template_name='tracker/password_change_form.html'), name='password_change'),
+    path('password-change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='tracker/password_change_done.html'), name='password_change_done'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('signup/', views.signup, name='signup'),
     path('resend-activation/', views.resend_activation, name='resend_activation'),
     path('activate/<uidb64>/<token>/', views.activate, name='activate'),
     path('healthz', views.healthz, name='healthz'),
+    path('theme/toggle/', views.toggle_theme, name='toggle_theme'),
 
     path('', views.home, name='home'),
     path('dashboard/', views.dashboard, name='dashboard'),
@@ -43,4 +46,15 @@ urlpatterns = [
     path('advisor/projects/<int:pk>/wordlogs.csv', views.advisor_project_wordlogs_csv, name='advisor_project_wordlogs_csv'),
     path('advisor/export.json', views.advisor_export_json, name='advisor_export_json'),
     path('advisor/export.csv', views.advisor_export_csv, name='advisor_export_csv'),
+    path('advisor/export_import.csv', views.advisor_export_import_csv, name='advisor_export_import_csv'),
+    path('advisor/import/', views.advisor_import, name='advisor_import'),
+    path('advisor/import/template.csv', views.advisor_import_template, name='advisor_import_template'),
+    # ICS calendar feeds
+    path('calendar.ics', views.calendar_ics, name='calendar_ics'),
+    path('advisor/calendar.ics', views.advisor_calendar_ics, name='advisor_calendar_ics'),
+    path('calendar/token/<str:token>.ics', views.calendar_ics_token, name='calendar_ics_token'),
+    path('advisor/calendar/token/<str:token>.ics', views.advisor_calendar_ics_token, name='advisor_calendar_ics_token'),
+    path('calendar/settings/', views.calendar_settings, name='calendar_settings'),
+    # Drag-and-drop reorder/move
+    path('tasks/reorder/', views.task_reorder, name='task_reorder'),
 ]

@@ -29,7 +29,7 @@ class CsvExportTests(TestCase):
 
     def test_advisor_project_wordlogs_csv(self):
         advisor = User.objects.create_user(username="adv", password="pass", email="adv@example.com")
-        Profile.objects.create(user=advisor, role="advisor")
+        Profile.objects.update_or_create(user=advisor, defaults={"role": "advisor"})
         self.client.login(username="adv", password="pass")
         url = reverse("advisor_project_wordlogs_csv", args=[self.project.pk])
         resp = self.client.get(url)
@@ -37,4 +37,3 @@ class CsvExportTests(TestCase):
         body = resp.content.decode("utf-8")
         self.assertIn("date,words,note,task_id,task,milestone", body.splitlines()[0])
         self.assertIn("123", body)
-

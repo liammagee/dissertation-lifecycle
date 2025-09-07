@@ -115,9 +115,11 @@ Each is stored under `sections/<name>.md` and initialized with a brief template.
 
 ## Notes
 
-- This tool uses only the Python standard library (no installs required).
+- This tool uses only the Python standard library (no installs required) for the CLI; the web app uses Django.
 - You can organize references and assets however you like; this tool only manages section files and metadata.
 - For more sections or customization, you can manually add Markdown files and include them during export by copying content into the canonical section files.
+
+More docs: see `docs/README.md` for the documentation index.
 
 ## Visual Progress & Lifecycles
 
@@ -128,11 +130,25 @@ Each is stored under `sections/<name>.md` and initialized with a brief template.
 
 - Adjust under the Targets page. Default is 70% words and 30% lifecycle.
 - Weights do not need to sum to 100; they are normalized by their sum.
+
+### Simple Progress Mode (status‑only)
+
+- To use the app purely as a task progress tracker (no word‑based effort), set:
+
+```
+fly secrets set SIMPLE_PROGRESS_MODE=1
+```
+
+- Effects:
+  - Progress is based on task status only (To Do=0, Doing=50, Done=100).
+  - Dashboard hides word targets and effort/combined badges.
+  - Writing navigation is hidden (you can re‑enable anytime by clearing the flag).
 ## Django Web App (new)
 
 Local setup
 - Python 3.10+
 - Install: `pip install -r requirements.txt`
+- Dev/test deps: `pip install -r requirements-dev.txt`
 - Env: copy `.env.example` to `.env` (or export same vars)
 - Init DB: `python manage.py migrate`
 - Seed templates: `python manage.py seed_templates`
@@ -143,6 +159,7 @@ Local setup
 Key URLs
 - `/signup` student self‑registration
 - `/login` and `/logout`
+- Change password while logged in: `/password-change/` (uses stronger policy — 10+ chars and mixed character types)
 - `/dashboard` student dashboard (tasks and completion)
 - `/advisor` advisor dashboard (simple list of projects)
 - Advisor exports: `/advisor/export.json`, `/advisor/export.csv`
@@ -151,13 +168,105 @@ Key URLs
 - `/admin/` Django admin (manage templates, tasks, etc.)
 - Task detail/edit: `/tasks/<id>/` and `/tasks/<id>/edit/`
 - Writing logs CSV (student): `/writing/export.csv`
-  - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
+ - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
  - Auth: password reset — `/password-reset/`, `/password-reset/done/`, `/reset/<uidb64>/<token>/`, `/reset/done/`
  - Auth: resend activation — `/resend-activation/`
+ - Auth: change password — `/password-change/`, `/password-change/done/`
 
 Storage on Fly.io
 - Use a Fly Volume mounted at `/data`; set `UPLOAD_ROOT=/data/uploads`.
 - Collect static in CI or at release: `python manage.py collectstatic --noinput` (optional if you later add static files)
+
+### Testing
+
+- Install dev dependencies: `pip install -r requirements-dev.txt`
+- Run tests: `pytest -q` or `make test`
+
+### Upgrades
+
+- Local/dev
+  - Pull latest code, then run: `python manage.py migrate`
+  - If templates changed and you want the new simplified set: `python manage.py reset_templates && python manage.py seed_templates && python manage.py apply_core && python manage.py sync_milestones`
+  - Run tests: `pytest -q`
+- Fly.io
+  - Deploy: `fly deploy` (the `release_command` runs `python manage.py migrate`)
+  - If you need to reseed/apply templates for existing projects, run:
+    - `fly ssh console -C "python manage.py reset_templates --apply-core"`
+    - Then reconcile: `fly ssh console -C "python manage.py sync_milestones"`
+- New env vars (optional)
+  - Webhooks: `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`, and `WEBHOOK_MAX_LINES` (default 80).
+  - Calendar tokens: no env changes; visit `/calendar/settings/` to manage per‑user token URLs.
+  - Password policy: stronger by default (min length 10 + complexity validator); no env required.
+
+### Milestone Templates (Simplified)
+
+This app ships with a simplified, milestone‑only template set (no default tasks):
+
+- Literature Review - General Field
+- Literature Review - Special Field
+- Introduction
+- Methodology
+- Internal Review Board Application
+- Preliminary Exam
+- Findings
+- Conclusion
+- Final Defence
+
+You can apply these to projects via the New Project form (check “apply templates”), or from the command line (see below).
+
+### Reset / Reseed Templates
+
+- Reseed the simplified templates (deletes existing milestone/task templates):
+  - `python manage.py reset_templates`
+- Reseed and apply the core milestones to all existing projects:
+  - `python manage.py reset_templates --apply-core`
+- Just apply core milestones (no reseed):
+  - `python manage.py apply_core`
+
+After reseeding/apply-core, reconcile existing projects to remove duplicates and migrate old milestones:
+- `python manage.py sync_milestones`  (use `--dry-run` first to preview changes)
+  - Or on Fly.io: `make sync` (runs the command inside the app VM)
+  - Locally you can also use: `make sync-local`
+
+Quick reseed + sync (local)
+- `python manage.py reset_templates && python manage.py seed_templates && python manage.py apply_core && python manage.py sync_milestones`
+
+Quick reseed + sync (Fly.io)
+- `fly ssh console -C "python manage.py reset_templates && python manage.py seed_templates && python manage.py apply_core && python manage.py sync_milestones"`
+
+Notes
+- “Core” means milestone templates whose keys start with `core-` (the simplified set uses this).
+- The simplified templates do not create any default tasks. You can add tasks per project as needed.
+
+### Full Reset (Data)
+
+Local (SQLite)
+- Option A — flush data, keep schema:
+  - `python manage.py flush --noinput`
+  - `python manage.py seed_templates`
+  - Create users again (e.g., `python manage.py createsuperuser` or `bootstrap_local`).
+- Option B — drop DB file and re‑init:
+  - Stop the dev server if running: press Ctrl+C in the terminal where `python manage.py runserver` is running.
+    - If it was started in the background, stop it with `pkill -f "manage.py runserver"` (macOS/Linux).
+  - Delete `db.sqlite3` (and optionally the `uploads/` folder).
+  - Recreate schema: `python manage.py migrate`
+  - Seed templates: `python manage.py seed_templates`
+  - Recreate users (e.g., `python manage.py createsuperuser` or `bootstrap_local` or `create_samples`).
+
+Postgres
+- Drop and recreate the database using your preferred method, then:
+  - `python manage.py migrate`
+  - `python manage.py seed_templates`
+  - Recreate users.
+
+Fly.io (production)
+- Reseed templates only:
+  - `fly ssh console -C "python manage.py reset_templates"`
+- Reseed and apply to all projects:
+  - `fly ssh console -C "python manage.py reset_templates --apply-core"`
+- Then reconcile existing projects (recommended):
+  - `fly ssh console -C "python manage.py sync_milestones"` (or `make sync`)
+- Caution: For a full data reset in production, you’ll need to drop/recreate the database used by `DATABASE_URL` and then run migrations. Only do this if you intend to wipe all data.
 
 ### Notifications & Scheduling
 
@@ -185,6 +294,19 @@ Schedule it with your preferred mechanism:
   - You can also run it manually via the “Run workflow” UI with overrides.
 - Or any external scheduler that runs: `fly ssh console -C "python manage.py notify ..."`
 
+#### Optional Webhooks (Slack/Teams)
+
+- Set `SLACK_WEBHOOK_URL` and/or `TEAMS_WEBHOOK_URL` to post the advisor weekly digest to Slack/Teams in addition to email.
+- Messages are formatted nicely:
+  - Slack uses Blocks (header + sections with bullets).
+  - Teams uses an Office365 Connector card with a title and bullet list.
+- Posts are best‑effort; failures are ignored so email remains the source of truth.
+- Advisor weekly digest: grouped per project with key stats and upcoming due items.
+- Per‑event posts:
+  - Due‑soon summary (students with tasks due in the configured window)
+  - Inactivity summary (students without logs past the threshold)
+- Limit posted items with `WEBHOOK_MAX_LINES` (default 80).
+
 ### Backups
 
 - Students can download a ZIP of their data and attachments at `/export.zip` (after login).
@@ -194,10 +316,20 @@ Schedule it with your preferred mechanism:
 ### Security & Environment
 
 - In production (`DEBUG=0`), security flags are enabled: HTTPS redirect, secure cookies, HSTS, and proxy SSL header.
+- Password policy: minimum length 10; must include at least three of: lowercase, uppercase, digits, symbols.
 - Configure hosts and CSRF via env:
   - `ALLOWED_HOSTS=your.domain,other.domain`
   - `CSRF_TRUSTED_ORIGINS=https://your.domain,https://other.domain`
 - On Fly.io, defaults allow `*.fly.dev`. Set `FLY_APP_NAME` to your app for ALLOWED_HOSTS default.
+
+### Calendar Feeds (ICS)
+
+- Student due‑dates feed (requires login): `/calendar.ics` — includes To Do/Doing tasks with a due date as all‑day events.
+- Advisor due‑dates feed (requires advisor/admin login): `/advisor/calendar.ics?days=60` — upcoming tasks across students.
+- Tokenized feeds for external calendar apps: each user has a secret token URL.
+  - Student token feed: `/calendar/token/<token>.ics`
+  - Advisor token feed: `/advisor/calendar/token/<token>.ics?days=60`
+  - Manage tokens and copy URLs at `/calendar/settings/` (rotate to invalidate old links).
 
 ## Production Deploy (Fly.io)
 
@@ -214,6 +346,19 @@ Create volume
 fly volumes create data --size 1 --region den -a dissertation-lifecycle
 ```
 
+
+### Advisor Import/Export
+
+- Import page: `/advisor/import/` (advisor/admin)
+  - Upload CSV with columns: `username,email,title,apply_templates,status,password,display_name,new_title`.
+  - Options:
+    - Update only: updates existing users/projects; reports missing ones.
+    - Dry run: parses and reports without writing changes.
+    - Create missing users: allow creating users even if Update only is checked.
+    - Create missing projects: allow creating projects even if Update only is checked.
+  - Template CSV: `/advisor/import/template.csv`.
+- Export (re‑importable) CSV: `/advisor/export_import.csv` — can be fed back into the importer as‑is.
+- Export summary CSV/JSON: `/advisor/export.csv`, `/advisor/export.json` (read‑only snapshots).
 Minimal secrets (copy/paste and edit)
 ```
 fly secrets set \
@@ -281,3 +426,7 @@ The workflow `.github/workflows/notify.yml` runs daily at 09:00 UTC or on demand
   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`
   - Optional: `AWS_S3_REGION_NAME`, `AWS_S3_ENDPOINT_URL`, `AWS_S3_SIGNATURE_VERSION`, `AWS_S3_CUSTOM_DOMAIN`, `AWS_QUERYSTRING_AUTH=1`
   - This switches `DEFAULT_FILE_STORAGE` to S3 via `django-storages`.
+
+## Operations Runbook
+
+For admin/ops procedures, see `docs/ops.md`.

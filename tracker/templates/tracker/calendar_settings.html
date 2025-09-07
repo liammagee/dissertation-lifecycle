@@ -1,0 +1,35 @@
+{% extends 'tracker/base.html' %}
+{% block content %}
+<h2>Calendar Integration</h2>
+
+<p class="text-muted">Subscribe to your task due‑dates as an ICS calendar. You can use either the login‑protected URL (works while logged in) or the token URL (works in external calendar apps). Rotating the token will invalidate existing subscriptions.</p>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Student Calendar</h5>
+    <div class="mb-2"><strong>Login URL:</strong> <code>{{ student_login_url }}</code></div>
+    <div class="mb-2"><strong>Token URL:</strong> <code>{{ student_token_url }}</code></div>
+    <form method="post" class="mt-2">{% csrf_token %}
+      <input type="hidden" name="action" value="rotate_student" />
+      <button class="btn btn-outline-danger btn-sm" type="submit">Rotate Student Token</button>
+    </form>
+  </div>
+ </div>
+
+{% if advisor_token_url %}
+<div class="card mb-3">
+  <div class="card-body">
+    <h5 class="card-title">Advisor Aggregate Calendar</h5>
+    <div class="mb-2"><strong>Login URL:</strong> <code>{{ advisor_login_url }}</code></div>
+    <div class="mb-2"><strong>Token URL:</strong> <code>{{ advisor_token_url }}</code></div>
+    <form method="post" class="mt-2">{% csrf_token %}
+      <input type="hidden" name="action" value="rotate_advisor" />
+      <button class="btn btn-outline-danger btn-sm" type="submit">Rotate Advisor Token</button>
+    </form>
+    <div class="text-muted small mt-2">Tip: you can add <code>?days=90</code> to extend the window.</div>
+  </div>
+</div>
+{% endif %}
+
+<a class="btn btn-secondary" href="{% url 'dashboard' %}">Back to Dashboard</a>
+{% endblock %}

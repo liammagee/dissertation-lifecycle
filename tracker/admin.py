@@ -1,4 +1,17 @@
 from django.contrib import admin
+from .models import AppSettings
+
+
+@admin.register(AppSettings)
+class AppSettingsAdmin(admin.ModelAdmin):
+    list_display = ("status_weight", "effort_weight", "updated_at")
+
+    def has_add_permission(self, request):
+        # Allow only one settings row
+        from .models import AppSettings as S
+        if S.objects.count() >= 1:
+            return False
+        return super().has_add_permission(request)
 from django.contrib.auth import get_user_model
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from . import models
@@ -6,8 +19,37 @@ from . import models
 
 @admin.register(models.Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'display_name')
+    list_display = (
+        'user', 'role', 'display_name', 'student_calendar_token_short', 'advisor_calendar_token_short'
+    )
     list_filter = ('role',)
+    actions = ('rotate_student_tokens', 'rotate_advisor_tokens')
+
+    @admin.display(description='Student token')
+    def student_calendar_token_short(self, obj):  # type: ignore[no-untyped-def]
+        t = obj.student_calendar_token or ''
+        return t[:8] + '…' if t else ''
+
+    @admin.display(description='Advisor token')
+    def advisor_calendar_token_short(self, obj):  # type: ignore[no-untyped-def]
+        t = obj.advisor_calendar_token or ''
+        return t[:8] + '…' if t else ''
+
+    @admin.action(description='Rotate student calendar tokens')
+    def rotate_student_tokens(self, request, queryset):  # type: ignore[no-untyped-def]
+        n = 0
+        for p in queryset:
+            p.rotate_student_token()
+            n += 1
+        self.message_user(request, f"Rotated student tokens for {n} profile(s).")
+
+    @admin.action(description='Rotate advisor calendar tokens')
+    def rotate_advisor_tokens(self, request, queryset):  # type: ignore[no-untyped-def]
+        n = 0
+        for p in queryset:
+            p.rotate_advisor_token()
+            n += 1
+        self.message_user(request, f"Rotated advisor tokens for {n} profile(s).")
 
 
 @admin.register(models.Project)

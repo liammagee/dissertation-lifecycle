@@ -15,9 +15,37 @@ class Profile(models.Model):
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='student')
     display_name = models.CharField(max_length=120, blank=True)
+    student_calendar_token = models.CharField(max_length=64, blank=True, default='')
+    advisor_calendar_token = models.CharField(max_length=64, blank=True, default='')
 
     def __str__(self) -> str:
         return self.display_name or self.user.get_username()
+
+    def ensure_student_token(self) -> str:
+        if not self.student_calendar_token:
+            import secrets
+            self.student_calendar_token = secrets.token_urlsafe(32)
+            self.save(update_fields=['student_calendar_token'])
+        return self.student_calendar_token
+
+    def rotate_student_token(self) -> str:
+        import secrets
+        self.student_calendar_token = secrets.token_urlsafe(32)
+        self.save(update_fields=['student_calendar_token'])
+        return self.student_calendar_token
+
+    def ensure_advisor_token(self) -> str:
+        if not self.advisor_calendar_token:
+            import secrets
+            self.advisor_calendar_token = secrets.token_urlsafe(32)
+            self.save(update_fields=['advisor_calendar_token'])
+        return self.advisor_calendar_token
+
+    def rotate_advisor_token(self) -> str:
+        import secrets
+        self.advisor_calendar_token = secrets.token_urlsafe(32)
+        self.save(update_fields=['advisor_calendar_token'])
+        return self.advisor_calendar_token
 
 
 class Project(models.Model):
@@ -188,3 +216,44 @@ class Notification(models.Model):
     payload = models.JSONField(default=dict, blank=True)
     scheduled_for = models.DateTimeField(null=True, blank=True)
     sent_at = models.DateTimeField(null=True, blank=True)
+
+
+class AuditLog(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    project = models.ForeignKey('Project', null=True, blank=True, on_delete=models.SET_NULL)
+    action = models.CharField(max_length=64)
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self) -> str:  # pragma: no cover
+        u = getattr(self.user, 'username', 'system')
+        return f"{self.created_at:%Y-%m-%d %H:%M} • {u} • {self.action}"
+
+
+class AppSettings(models.Model):
+    """Global app settings editable in the admin.
+
+    We use this to control weighting between status and effort for progress.
+    Default hides effort in the UI by setting effort_weight=0.
+    """
+    status_weight = models.PositiveIntegerField(default=100)
+    effort_weight = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "App Settings"
+        verbose_name_plural = "App Settings"
+
+    def __str__(self) -> str:
+        return f"Settings (status={self.status_weight}%, effort={self.effort_weight}%)"
+
+    @classmethod
+    def get(cls) -> "AppSettings":
+        obj = cls.objects.first()
+        if obj:
+            return obj
+        # Create with defaults on first access
+        return cls.objects.create()

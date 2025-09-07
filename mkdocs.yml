@@ -1,0 +1,54 @@
+site_name: Dissertation Lifecycle
+site_description: Documentation site for the Dissertation Lifecycle app
+repo_url: https://github.com/your-org/dissertation-lifecycle
+repo_name: your-org/dissertation-lifecycle
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
+nav:
+  - Home: index.md
+  - Operations Runbook: ops.md
+  - Deployment: DEPLOY.md
+  - Roadmap: roadmap.md
+  - Architecture Decisions:
+      - ADR-0001 Architecture: adr/0001-architecture.md
+  - Data Model: data-model.md
+docs_dir: docs
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-org/dissertation-lifecycle
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/your_handle
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/company/your-company/
+    - icon: fontawesome/solid/globe
+      link: https://your-domain.example.com/
+    - icon: fontawesome/solid/envelope
+      link: mailto:info@example.com
+extra_css:
+  - assets/custom.css
+markdown_extensions:
+  - toc:
+      permalink: true
+  - tables
+  - admonition

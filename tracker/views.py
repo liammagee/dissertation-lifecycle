@@ -23,13 +23,21 @@ from .forms import (
     ProjectNoteForm,
     SignupForm,
     ResendActivationForm,
+    AdvisorImportForm,
 )
 from .models import Profile, Project, Task, Document, ProjectNote
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
-from .services import apply_templates_to_project, compute_streaks, task_effort, task_combined_percent, compute_badges
+from .services import (
+    apply_templates_to_project,
+    compute_streaks,
+    task_effort,
+    task_combined_percent,
+    compute_badges,
+    get_progress_weights,
+)
 from .motivation import QUOTES
 
 
@@ -142,6 +150,17 @@ def home(request):
     return render(request, 'tracker/home.html')
 
 
+def toggle_theme(request):
+    """Toggle dark/light theme and redirect back."""
+    try:
+        cur = request.session.get('theme', 'light')
+        request.session['theme'] = 'dark' if cur != 'dark' else 'light'
+    except Exception:
+        pass
+    nxt = request.META.get('HTTP_REFERER') or '/'
+    return redirect(nxt)
+
+
 @login_required
 def dashboard(request):
     # If user is advisor, redirect to advisor dashboard
@@ -171,6 +190,11 @@ def dashboard(request):
             pass
     if request.GET.get('drafts') == '1':
         qs = qs.filter(title__icontains='draft')
+    # Simple search by title/description
+    q = (request.GET.get('q') or '').strip()
+    if q:
+        from django.db.models import Q
+        qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
     milestone_id = request.GET.get('milestone')
     if milestone_id:
         try:
@@ -184,6 +208,28 @@ def dashboard(request):
         except Exception:
             pass
     tasks = list(qs)
+    # Stage-gated milestones (must be done in order)
+    GATED_KEYS = [
+        'core-literature-review-general',
+        'core-literature-review-special',
+        'core-irb-application',
+        'core-preliminary-exam',
+        'core-final-defence',
+    ]
+    # Precompute which gated milestones are done (all tasks done)
+    done_by_key: dict[str, bool] = {}
+    for key in GATED_KEYS:
+        m = project.milestones.select_related('template').filter(template__key=key).first()
+        if not m:
+            done_by_key[key] = False
+        else:
+            ts = list(m.tasks.all())
+            done_by_key[key] = bool(ts) and all(t.status == 'done' for t in ts)
+    # Helper to get display name for a gated key
+    name_by_key: dict[str, str] = {}
+    for m in project.milestones.select_related('template').all():
+        if m.template and m.template.key in GATED_KEYS:
+            name_by_key[m.template.key] = m.name
     # Compute can-move flags per task (based on full milestone ordering)
     by_milestone = {}
     for t in project.tasks.select_related('milestone').order_by('milestone__order', 'order', 'pk'):
@@ -197,22 +243,9 @@ def dashboard(request):
         t.can_move_up = (i > 0)
         t.can_move_down = (i < n - 1)
     completion = project.completion_percent()
-    # Read weights for combining status+effort and persist in session
-    if 'update_weights' in request.GET:
-        try:
-            w_status = max(0, int(request.GET.get('w_status', '70')))
-        except Exception:
-            w_status = 70
-        try:
-            w_effort = max(0, int(request.GET.get('w_effort', '30')))
-        except Exception:
-            w_effort = 30
-        request.session['w_status'] = w_status
-        request.session['w_effort'] = w_effort
-    else:
-        w_status = request.session.get('w_status', 70)
-        w_effort = request.session.get('w_effort', 30)
-    weights = {'status': w_status, 'effort': w_effort}
+    # Use global weights from admin settings (not per-student)
+    weights = get_progress_weights()
+    show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
     # Per-milestone progress
     milestones = project.milestones.prefetch_related('tasks').all()
     milestone_progress = []
@@ -248,6 +281,27 @@ def dashboard(request):
         except Exception:
             t.effort_pct = 0
             t.combined_pct = 0
+        # Stage-gating status for this task
+        try:
+            key = getattr(getattr(t.milestone, 'template', None), 'key', '')
+            if key in GATED_KEYS:
+                idx = GATED_KEYS.index(key)
+                blocked = False
+                wait_for = ''
+                if idx > 0:
+                    for prev in GATED_KEYS[:idx]:
+                        if not done_by_key.get(prev, False):
+                            blocked = True
+                            wait_for = name_by_key.get(prev, prev)
+                            break
+                t.gated_blocked = blocked
+                t.gated_wait = wait_for
+            else:
+                t.gated_blocked = False
+                t.gated_wait = ''
+        except Exception:
+            t.gated_blocked = False
+            t.gated_wait = ''
     badges = compute_badges(project)
     # Quote of the day (stable per user+date)
     try:
@@ -265,8 +319,7 @@ def dashboard(request):
         'radar_show_grid': radar_show_grid,
         'radar_show_labels': radar_show_labels,
         'radar_speed': radar_speed,
-        'w_status': w_status,
-        'w_effort': w_effort,
+        'show_effort': show_effort,
         'badges': badges,
         'quote': quote,
         # filters state
@@ -276,6 +329,7 @@ def dashboard(request):
         'drafts': request.GET.get('drafts') == '1',
         'milestone_id': milestone_id or '',
         'milestones': project.milestones.all(),
+        'q': q,
         # tasks now carry task.effort_pct
     })
 
@@ -314,10 +368,8 @@ def task_status(request, pk: int):
         form = TaskStatusForm(request.POST, instance=task)
         if form.is_valid():
             task = form.save()
-            # Recompute effort/combined with weights from session for HTMX response
-            w_status = request.session.get('w_status', 70)
-            w_effort = request.session.get('w_effort', 30)
-            weights = {'status': w_status, 'effort': w_effort}
+            # Recompute effort/combined with global weights for HTMX response
+            weights = get_progress_weights()
             try:
                 task.effort_pct = task_effort(task)[2]
                 task.combined_pct = task_combined_percent(task, weights)
@@ -326,7 +378,8 @@ def task_status(request, pk: int):
                 task.combined_pct = 0
             if request.headers.get('HX-Request'):
                 tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
-                return render(request, tpl, {'task': task})
+                show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+                return render(request, tpl, {'task': task, 'show_effort': show_effort})
             nxt = request.POST.get('next') or ''
             if nxt:
                 return redirect(nxt)
@@ -351,9 +404,7 @@ def task_target(request, pk: int):
         task.word_target = max(0, target)
         task.save()
         # Recompute to update badges if HTMX
-        w_status = request.session.get('w_status', 70)
-        w_effort = request.session.get('w_effort', 30)
-        weights = {'status': w_status, 'effort': w_effort}
+        weights = get_progress_weights()
         try:
             task.effort_pct = task_effort(task)[2]
             task.combined_pct = task_combined_percent(task, weights)
@@ -363,7 +414,8 @@ def task_target(request, pk: int):
         if request.headers.get('HX-Request'):
             # Choose partial based on viewer and flag as just saved (for UI pulse)
             tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
-            ctx = {'task': task, 'just_saved': True}
+            show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+            ctx = {'task': task, 'just_saved': True, 'show_effort': show_effort}
             if request.POST.get('explicit'):
                 ctx['toast_message'] = 'Target saved'
             return render(request, tpl, ctx)
@@ -553,9 +605,7 @@ def task_move(request, pk: int, direction: str):
     if request.headers.get('HX-Request'):
         # Recompute badges/effect for this row
         try:
-            w_status = request.session.get('w_status', 70)
-            w_effort = request.session.get('w_effort', 30)
-            weights = {'status': w_status, 'effort': w_effort}
+            weights = get_progress_weights()
             task.refresh_from_db()
             task.effort_pct = task_effort(task)[2]
             task.combined_pct = task_combined_percent(task, weights)
@@ -570,8 +620,183 @@ def task_move(request, pk: int, direction: str):
             task.effort_pct = 0
             task.combined_pct = 0
             task.can_move_up = task.can_move_down = False
-        return render(request, 'tracker/partials/task_row.html', {'task': task})
+        show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+        return render(request, 'tracker/partials/task_row.html', {'task': task, 'show_effort': show_effort})
     return redirect('dashboard')
+
+
+@login_required
+def task_reorder(request):
+    """Reorder (and optionally move) a task via DnD.
+
+    POST params:
+    - task_id: int (required)
+    - insert_after_id: int | '' (optional; if not provided, append to end)
+    - target_milestone_id: int | '' (optional; if provided, move to that milestone first)
+    """
+    if request.method != 'POST':
+        return redirect('dashboard')
+    try:
+        task_id = int(request.POST.get('task_id'))
+    except Exception:
+        return JsonResponse({'error': 'invalid task_id'}, status=400)
+    insert_after_id = request.POST.get('insert_after_id')
+    try:
+        insert_after_id = int(insert_after_id) if insert_after_id else None
+    except Exception:
+        insert_after_id = None
+    target_mid = request.POST.get('target_milestone_id')
+    try:
+        target_mid = int(target_mid) if target_mid else None
+    except Exception:
+        target_mid = None
+    position = (request.POST.get('position') or '').strip()
+    # Fetch owned task
+    task = get_object_or_404(Task.objects.select_related('milestone', 'project'), pk=task_id, project__student=request.user)
+    with transaction.atomic():
+        # If moving to another milestone
+        if target_mid and (not task.milestone or task.milestone_id != target_mid):
+            try:
+                target_m = task.project.milestones.get(pk=target_mid)
+            except Exception:
+                target_m = None
+            if target_m:
+                task.milestone = target_m
+                # place at end initially
+                try:
+                    agg = Task.objects.filter(project=task.project, milestone=target_m).aggregate(max_order=Max('order'))
+                    max_order = int(agg.get('max_order') or 0)
+                except Exception:
+                    max_order = 0
+                task.order = max_order + 1
+                task.save(update_fields=['milestone', 'order'])
+        # Now reorder within target/current milestone
+        siblings = list(Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk'))
+        # Build new order list with task placed after insert_after_id (or at end)
+        ids = [s.pk for s in siblings if s.pk != task.pk]
+        if position == 'top':
+            ids.insert(0, task.pk)
+        elif insert_after_id and insert_after_id in ids:
+            idx = ids.index(insert_after_id) + 1
+            ids.insert(idx, task.pk)
+        else:
+            ids.append(task.pk)
+        for idx, tpk in enumerate(ids, start=1):
+            if tpk == task.pk and task.order != idx:
+                Task.objects.filter(pk=tpk).update(order=idx)
+                task.order = idx
+            elif tpk != task.pk:
+                Task.objects.filter(pk=tpk).update(order=idx)
+    # Return updated row for HTMX partial replacement if requested
+    if request.headers.get('HX-Request'):
+        try:
+            weights = get_progress_weights()
+            task.refresh_from_db()
+            task.effort_pct = task_effort(task)[2]
+            task.combined_pct = task_combined_percent(task, weights)
+            # can_move flags after reorder
+            siblings = list(
+                Task.objects.filter(project=task.project, milestone=task.milestone).order_by('order', 'pk').values_list('pk', flat=True)
+            )
+            idx = siblings.index(task.pk)
+            task.can_move_up = idx > 0
+            task.can_move_down = idx < len(siblings) - 1
+        except Exception:
+            task.effort_pct = 0
+            task.combined_pct = 0
+            task.can_move_up = task.can_move_down = False
+        show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+        return render(request, 'tracker/partials/task_row.html', {'task': task, 'show_effort': show_effort})
+    return JsonResponse({'ok': True})
+
+
+@login_required
+def calendar_ics(request):
+    """ICS calendar feed for the current student's due tasks (login required).
+
+    Includes TODO/DOING tasks with a due_date, as all-day events.
+    """
+    project = Project.objects.filter(student=request.user, status='active').first()
+    if not project:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar')
+    tasks = project.tasks.select_related('milestone').filter(due_date__isnull=False, status__in=['todo', 'doing']).order_by('due_date', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in tasks:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{title}"
+        desc = f"Milestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+@login_required
+def advisor_calendar_ics(request):
+    """ICS calendar feed for advisors/admins showing upcoming student task due dates.
+
+    Query params:
+      - days: window forward in days (default 60)
+    """
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    try:
+        days = int(request.GET.get('days', '60'))
+    except Exception:
+        days = 60
+    today = date.today()
+    latest = today + timedelta(days=max(1, days))
+    qs = Task.objects.select_related('project__student', 'milestone').filter(
+        due_date__gte=today,
+        due_date__lte=latest,
+        status__in=['todo', 'doing'],
+        project__status='active',
+    ).order_by('due_date', 'project__student__username', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in qs:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        student = t.project.student.get_username() if t.project and t.project.student else 'student'
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{student}: {title}"
+        desc = f"Project: {t.project.title if t.project else ''}\\nMilestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:adv-task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
 
 
 @login_required
@@ -642,6 +867,132 @@ def edit_document(request, pk: int):
     return render(request, 'tracker/document_form.html', {'form': form, 'doc': doc})
 
 
+# Public ICS feeds using per-user tokens and a simple settings page to manage tokens
+def calendar_ics_token(request, token: str):
+    """Public ICS via per-user token (student)."""
+    profile = Profile.objects.filter(student_calendar_token=token, role='student').select_related('user').first()
+    if not profile:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar', status=404)
+    user = profile.user
+    project = Project.objects.filter(student=user, status='active').first()
+    if not project:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar')
+    tasks = project.tasks.select_related('milestone').filter(due_date__isnull=False, status__in=['todo', 'doing']).order_by('due_date', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in tasks:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{title}"
+        desc = f"Milestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+def advisor_calendar_ics_token(request, token: str):
+    """Public ICS via per-user token (advisor/admin aggregate)."""
+    profile = Profile.objects.filter(advisor_calendar_token=token, role__in=['advisor', 'admin']).select_related('user').first()
+    if not profile:
+        return HttpResponse('BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//dissertation-lifecycle//EN\nEND:VCALENDAR', content_type='text/calendar', status=404)
+    try:
+        days = int(request.GET.get('days', '60'))
+    except Exception:
+        days = 60
+    today = date.today()
+    latest = today + timedelta(days=max(1, days))
+    qs = Task.objects.select_related('project__student', 'milestone').filter(
+        due_date__gte=today,
+        due_date__lte=latest,
+        status__in=['todo', 'doing'],
+        project__status='active',
+    ).order_by('due_date', 'project__student__username', 'milestone__order', 'order')
+    lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//dissertation-lifecycle//EN',
+        'CALSCALE:GREGORIAN',
+        'METHOD:PUBLISH',
+    ]
+    from datetime import datetime
+    for t in qs:
+        dt = t.due_date.strftime('%Y%m%d')
+        stamp = datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')
+        student = t.project.student.get_username() if t.project and t.project.student else 'student'
+        title = t.title.replace('\n', ' ').strip()
+        summary = f"{student}: {title}"
+        desc = f"Project: {t.project.title if t.project else ''}\\nMilestone: {t.milestone.name if t.milestone else ''}"
+        lines += [
+            'BEGIN:VEVENT',
+            f'UID:adv-task-{t.pk}@dissertation-lifecycle',
+            f'DTSTAMP:{stamp}',
+            f'DTSTART;VALUE=DATE:{dt}',
+            f'DTEND;VALUE=DATE:{dt}',
+            f'SUMMARY:{summary}',
+            f'DESCRIPTION:{desc}',
+            'END:VEVENT',
+        ]
+    lines.append('END:VCALENDAR')
+    return HttpResponse('\n'.join(lines), content_type='text/calendar')
+
+
+@login_required
+def calendar_settings(request):
+    """Simple page to view and rotate ICS calendar tokens and URLs."""
+    prof = Profile.objects.select_related('user').filter(user=request.user).first()
+    if not prof:
+        prof = Profile.objects.create(user=request.user, role='student')
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action in ('rotate', 'rotate_student'):
+            prof.rotate_student_token()
+            messages.success(request, 'Calendar token rotated.')
+            return redirect('calendar_settings')
+        if action == 'rotate_advisor' and prof.role in ('advisor', 'admin'):
+            prof.rotate_advisor_token()
+            messages.success(request, 'Advisor calendar token rotated.')
+            return redirect('calendar_settings')
+    # Ensure token exists for display
+    # Ensure relevant tokens exist for display
+    stoken = prof.ensure_student_token()
+    atoken = prof.ensure_advisor_token() if prof.role in ('advisor', 'admin') else ''
+    # Build absolute URLs
+    try:
+        from django.urls import reverse
+        student_token_url = request.build_absolute_uri(reverse('calendar_ics_token', args=[stoken]))
+        student_login_url = request.build_absolute_uri(reverse('calendar_ics'))
+        advisor_token_url = request.build_absolute_uri(reverse('advisor_calendar_ics_token', args=[atoken])) if atoken else ''
+        advisor_login_url = request.build_absolute_uri(reverse('advisor_calendar_ics')) if prof.role in ('advisor', 'admin') else ''
+    except Exception:
+        student_token_url = f"/calendar/token/{stoken}.ics"
+        student_login_url = "/calendar.ics"
+        advisor_token_url = f"/advisor/calendar/token/{atoken}.ics" if atoken else ''
+        advisor_login_url = "/advisor/calendar.ics" if prof.role in ('advisor', 'admin') else ''
+    return render(request, 'tracker/calendar_settings.html', {
+        'profile': prof,
+        'student_token_url': student_token_url,
+        'student_login_url': student_login_url,
+        'advisor_token_url': advisor_token_url,
+        'advisor_login_url': advisor_login_url,
+    })
+
+
 @login_required
 def advisor_dashboard(request):
     profile = getattr(request.user, 'profile', None)
@@ -655,31 +1006,68 @@ def advisor_dashboard(request):
     if q:
         qs = qs.filter(title__icontains=q) | qs.filter(student__username__icontains=q)
     projects = list(qs)
+    weights = get_progress_weights()
+    GATED_KEYS = [
+        'core-literature-review-general',
+        'core-literature-review-special',
+        'core-irb-application',
+        'core-preliminary-exam',
+        'core-final-defence',
+    ]
     for p in projects:
         ts = list(p.tasks.select_related('milestone').all())
         total = len(ts)
         try:
-            p.combined_percent = int(round(sum(task_combined_percent(t) for t in ts) / total)) if total else 0
+            p.combined_percent = int(round(sum(task_combined_percent(t, weights) for t in ts) / total)) if total else 0
         except Exception:
             p.combined_percent = 0
         p.done_tasks = sum(1 for t in ts if t.status == 'done')
+        # Compute next gated stage (if any)
+        try:
+            done_by_key: dict[str, bool] = {}
+            name_by_key: dict[str, str] = {}
+            id_by_key: dict[str, int] = {}
+            for m in p.milestones.select_related('template').all():
+                if m.template and m.template.key in GATED_KEYS:
+                    mts = list(m.tasks.all())
+                    done_by_key[m.template.key] = bool(mts) and all(t.status == 'done' for t in mts)
+                    name_by_key[m.template.key] = m.name
+                    id_by_key[m.template.key] = m.id
+            p.gated_next = ''
+            p.gated_next_id = None
+            p.gated_next_index = 999
+            for key in GATED_KEYS:
+                if not done_by_key.get(key, False):
+                    p.gated_next = name_by_key.get(key, key)
+                    p.gated_next_id = id_by_key.get(key)
+                    p.gated_next_index = GATED_KEYS.index(key)
+                    break
+        except Exception:
+            p.gated_next = ''
+            p.gated_next_id = None
+            p.gated_next_index = 999
     key_funcs = {
         'student': lambda x: (getattr(x.student, 'username', ''), x.title.lower()),
         'title': lambda x: (x.title.lower(), getattr(x.student, 'username', '')),
         'combined': lambda x: (-int(x.combined_percent or 0), -x.done_tasks, -x.total_tasks),
         'status': lambda x: (-x.completion_percent(), -x.total_tasks),
         'tasks': lambda x: (-int(x.total_tasks or 0), x.title.lower()),
+        'gate': lambda x: (int(getattr(x, 'gated_next_index', 999)), x.title.lower()),
     }
     if sort in key_funcs:
         projects.sort(key=key_funcs[sort])
     paginator = Paginator(projects, per)
     page_obj = Paginator(projects, per).get_page(request.GET.get('page'))
+    show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
+    if not show_effort and sort == 'combined':
+        sort = 'status'
     return render(request, 'tracker/advisor_dashboard.html', {
         'projects': page_obj.object_list,
         'page_obj': page_obj,
         'q': q,
         'sort': sort,
         'per': per,
+        'show_effort': show_effort,
     })
 
 
@@ -742,6 +1130,42 @@ def advisor_project(request, pk: int):
     per = max(1, min(100, int(request.GET.get('per', '25'))))
     page_obj = Paginator(qs, per).get_page(request.GET.get('page'))
     tasks = list(page_obj.object_list)
+    # Stage-gating for advisor view (informational locks)
+    GATED_KEYS = [
+        'core-literature-review-general',
+        'core-literature-review-special',
+        'core-irb-application',
+        'core-preliminary-exam',
+        'core-final-defence',
+    ]
+    done_by_key: dict[str, bool] = {}
+    name_by_key: dict[str, str] = {}
+    for m in project.milestones.select_related('template').all():
+        if m.template and m.template.key in GATED_KEYS:
+            ts = list(m.tasks.all())
+            done_by_key[m.template.key] = bool(ts) and all(t.status == 'done' for t in ts)
+            name_by_key[m.template.key] = m.name
+    for t in tasks:
+        try:
+            key = getattr(getattr(t.milestone, 'template', None), 'key', '')
+            if key in GATED_KEYS:
+                idx = GATED_KEYS.index(key)
+                blocked = False
+                wait_for = ''
+                if idx > 0:
+                    for prev in GATED_KEYS[:idx]:
+                        if not done_by_key.get(prev, False):
+                            blocked = True
+                            wait_for = name_by_key.get(prev, prev)
+                            break
+                t.gated_blocked = blocked
+                t.gated_wait = wait_for
+            else:
+                t.gated_blocked = False
+                t.gated_wait = ''
+        except Exception:
+            t.gated_blocked = False
+            t.gated_wait = ''
     notes = project.notes.select_related('author').all()
     docs = project.documents.select_related('task').order_by('-uploaded_at')
     from .models import FeedbackRequest, FeedbackComment, Document
@@ -799,12 +1223,14 @@ def advisor_project(request, pk: int):
     # Per-milestone progress summary
     milestones = project.milestones.prefetch_related('tasks').all()
     milestone_progress = []
+    weights = get_progress_weights()
+    show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
     for m in milestones:
         ts = list(m.tasks.all())
         total = len(ts)
         done = sum(1 for t in ts if t.status == 'done')
         if total:
-            avg = int(round(sum(task_combined_percent(t) for t in ts) / total))
+            avg = int(round(sum(task_combined_percent(t, weights) for t in ts) / total))
         else:
             avg = 0
         milestone_progress.append({'m': m, 'percent': avg, 'total': total, 'done': done})
@@ -832,6 +1258,7 @@ def advisor_project(request, pk: int):
         'order': order,
         'q': q,
         'per': per,
+        'show_effort': show_effort,
     })
 
 
@@ -844,6 +1271,7 @@ def advisor_project_export_json(request, pk: int):
     from django.http import HttpResponse
     project = get_object_or_404(Project.objects.select_related('student'), pk=pk)
     tasks = list(project.tasks.select_related('milestone').all())
+    weights = get_progress_weights()
     data = {
         'project_id': project.id,
         'author': project.student.get_username(),
@@ -858,7 +1286,7 @@ def advisor_project_export_json(request, pk: int):
                 'priority': t.priority,
                 'word_target': t.word_target,
                 'due_date': t.due_date.isoformat() if t.due_date else None,
-                'combined_percent': task_combined_percent(t),
+                'combined_percent': task_combined_percent(t, weights),
             }
             for t in tasks
         ],
@@ -879,6 +1307,7 @@ def advisor_project_export_csv(request, pk: int):
     resp['Content-Disposition'] = f'attachment; filename="project_{project.id}_tasks.csv"'
     writer = csv.writer(resp)
     writer.writerow(['task_id', 'milestone', 'title', 'status', 'priority', 'word_target', 'due_date', 'combined_percent'])
+    weights = get_progress_weights()
     for t in project.tasks.select_related('milestone').all():
         writer.writerow([
             t.id,
@@ -888,7 +1317,7 @@ def advisor_project_export_csv(request, pk: int):
             t.priority,
             t.word_target,
             t.due_date.isoformat() if t.due_date else '',
-            task_combined_percent(t),
+            task_combined_percent(t, weights),
         ])
     return resp
 
@@ -900,11 +1329,12 @@ def advisor_export_json(request):
         return redirect('dashboard')
     import json
     from django.http import HttpResponse
+    weights = get_progress_weights()
     data = []
     for p in Project.objects.select_related('student').all():
         tasks = list(p.tasks.select_related('milestone').all())
         total = len(tasks)
-        combined = int(round(sum(task_combined_percent(t) for t in tasks) / total)) if total else 0
+        combined = int(round(sum(task_combined_percent(t, weights) for t in tasks) / total)) if total else 0
         done = sum(1 for t in tasks if t.status == 'done')
         data.append({
             'project_id': p.id,
@@ -930,10 +1360,11 @@ def advisor_export_csv(request):
     resp['Content-Disposition'] = 'attachment; filename="advisor_export.csv"'
     writer = csv.writer(resp)
     writer.writerow(['project_id', 'author', 'email', 'title', 'total_tasks', 'done_tasks', 'combined_percent'])
+    weights = get_progress_weights()
     for p in Project.objects.select_related('student').all():
         tasks = list(p.tasks.select_related('milestone').all())
         total = len(tasks)
-        combined = int(round(sum(task_combined_percent(t) for t in tasks) / total)) if total else 0
+        combined = int(round(sum(task_combined_percent(t, weights) for t in tasks) / total)) if total else 0
         done = sum(1 for t in tasks if t.status == 'done')
         writer.writerow([p.id, p.student.get_username(), p.student.email, p.title, total, done, combined])
     return resp
@@ -1272,4 +1703,148 @@ def my_export_zip(request):
                 continue
     resp = HttpResponse(buf.getvalue(), content_type='application/zip')
     resp['Content-Disposition'] = f'attachment; filename="my_project_export.zip"'
+    return resp
+
+
+@login_required
+def advisor_import_template(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename="advisor_import_template.csv"'
+    w = csv.writer(resp)
+    w.writerow(['username', 'email', 'title', 'apply_templates', 'status', 'password'])
+    w.writerow(['alice', 'alice@example.com', 'Sample Dissertation', '1', 'active', ''])
+    return resp
+
+
+@login_required
+def advisor_import(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    results = []
+    if request.method == 'POST':
+        form = AdvisorImportForm(request.POST, request.FILES)
+        if form.is_valid():
+            import csv, io
+            f = form.cleaned_data['file']
+            try:
+                data = f.read().decode('utf-8')
+            except Exception:
+                data = f.read().decode('latin-1', errors='ignore')
+            reader = csv.DictReader(io.StringIO(data))
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            created_users = updated_users = created_projects = updated_projects = 0
+            from .models import Profile, Project
+            for row in reader:
+                uname = (row.get('username') or '').strip()
+                email = (row.get('email') or '').strip()
+                title = (row.get('title') or '').strip() or 'Untitled Project'
+                display_name = (row.get('display_name') or '').strip()
+                new_title = (row.get('new_title') or '').strip()
+                apply_templates = (row.get('apply_templates') or '0').strip().lower() in ('1', 'true', 'yes', 'y')
+                status = (row.get('status') or 'active').strip() or 'active'
+                pwd = (row.get('password') or '').strip()
+                if not uname:
+                    results.append(('error', 'Missing username'))
+                    continue
+                # Fetch or create user
+                user = User.objects.filter(username=uname).first()
+                u_created = False
+                update_only = bool(form.cleaned_data.get('update_only'))
+                dry_run = bool(form.cleaned_data.get('dry_run'))
+                allow_user_create = bool(form.cleaned_data.get('create_missing_users'))
+                allow_project_create = bool(form.cleaned_data.get('create_missing_projects'))
+                if not user:
+                    if update_only and not allow_user_create:
+                        results.append(('error', f"User missing (update-only): {uname}"))
+                        continue
+                    user = User(username=uname, email=email)
+                    if not dry_run:
+                        if pwd:
+                            user.set_password(pwd)
+                        else:
+                            user.set_unusable_password()
+                        user.save()
+                    u_created = True
+                    created_users += 1
+                else:
+                    if email and user.email != email:
+                        if not dry_run:
+                            user.email = email
+                            user.save(update_fields=['email'])
+                        updated_users += 1
+                # Ensure / update Profile and display name
+                prof = Profile.objects.filter(user=user).first()
+                if not prof:
+                    if not update_only and not dry_run:
+                        Profile.objects.create(user=user, role='student')
+                elif display_name and prof.display_name != display_name and not dry_run:
+                    prof.display_name = display_name
+                    prof.save(update_fields=['display_name'])
+                # Fetch or create project
+                proj = Project.objects.filter(student=user, title=title).first()
+                p_created = False
+                if not proj:
+                    if update_only and not allow_project_create:
+                        results.append(('error', f"Project missing (update-only): {uname} / {title}"))
+                        continue
+                    proj = Project(student=user, title=title, status=status)
+                    if not dry_run:
+                        proj.save()
+                    p_created = True
+                    created_projects += 1
+                if not p_created:
+                    changed = False
+                    if status and proj.status != status:
+                        proj.status = status; changed = True
+                    if new_title and new_title != proj.title:
+                        proj.title = new_title; changed = True
+                    if changed and not dry_run:
+                        proj.save(update_fields=['status', 'title'])
+                        updated_projects += 1
+                else:
+                    if apply_templates and not dry_run:
+                        try:
+                            apply_templates_to_project(proj)
+                        except Exception:
+                            pass
+                results.append(('ok', f"{uname} / {title} ({'new' if p_created else 'updated'})"))
+            messages.success(request, f"Import complete. Users: +{created_users}/{updated_users} updated. Projects: +{created_projects}/{updated_projects} updated.")
+    else:
+        form = AdvisorImportForm()
+    return render(request, 'tracker/advisor_import.html', {'form': form, 'results': results})
+
+
+@login_required
+def advisor_export_import_csv(request):
+    profile = getattr(request.user, 'profile', None)
+    if not profile or profile.role not in ('advisor', 'admin'):
+        return redirect('dashboard')
+    import csv
+    from django.http import HttpResponse
+    resp = HttpResponse(content_type='text/csv')
+    resp['Content-Disposition'] = 'attachment; filename="advisor_export_import.csv"'
+    w = csv.writer(resp)
+    # Export in a format that can be re-imported directly
+    w.writerow(['username', 'email', 'title', 'apply_templates', 'status', 'password', 'display_name', 'new_title'])
+    for p in Project.objects.select_related('student').all():
+        user = p.student
+        prof = getattr(user, 'profile', None)
+        display = getattr(prof, 'display_name', '') if prof else ''
+        w.writerow([
+            user.get_username(),
+            user.email or '',
+            p.title,
+            '',  # apply_templates
+            p.status,
+            '',  # password
+            display,
+            '',  # new_title
+        ])
     return resp

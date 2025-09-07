@@ -20,6 +20,7 @@
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_csv' project.pk %}">Export CSV</a>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_project_export_zip' project.pk %}">Export ZIP</a>
           </div>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'advisor_export_import_csv' %}">Export (re‑importable) CSV</a>
           <form method="get" action="{% url 'advisor_project_wordlogs_csv' project.pk %}" class="d-flex align-items-center gap-2">
             <input type="date" name="start" class="form-control form-control-sm" placeholder="Start" value="{{ export_filters.start }}">
             <input type="date" name="end" class="form-control form-control-sm" placeholder="End" value="{{ export_filters.end }}">
@@ -101,7 +102,19 @@
             {% for t in tasks %}
               <tr>
                 <td>{{ t.milestone.name }}</td>
-                <td>{{ t.title }}{% if t.word_target and t.word_target|add:0 > 0 %} <span class="text-muted small ms-2">Target: {{ t.word_target }} words</span>{% endif %}</td>
+                <td>
+                  {{ t.title }}
+                  <span class="nowrap">
+                    {% if t.gated_blocked %}
+                      <span class="badge rounded-pill text-bg-secondary ms-1 badge-tight" data-bs-toggle="tooltip" title="Locked until previous stage is completed: {{ t.gated_wait }}">
+                        <i class="bi bi-lock-fill"></i>
+                      </span>
+                    {% endif %}
+                    {% if show_effort and t.word_target and t.word_target|add:0 > 0 %}
+                      <span class="text-muted small ms-2">Target: {{ t.word_target }} words</span>
+                    {% endif %}
+                  </span>
+                </td>
                 <td>{{ t.get_status_display }}</td>
               </tr>
             {% empty %}
@@ -134,6 +147,13 @@
   <div class="col-lg-6">
     <div class="card">
       <div class="card-header">Project Notes</div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Project Notes</span>
+        <div class="btn-group btn-group-sm" role="group">
+          <a class="btn btn-outline-secondary" href="{% url 'advisor_import' %}">Import CSV</a>
+          <a class="btn btn-outline-secondary" href="{% url 'advisor_export_import_csv' %}">Export (re‑importable)</a>
+        </div>
+      </div>
       <div class="card-body">
         {% if notes %}
           <div class="list-group">

@@ -19,7 +19,7 @@ class AdvisorExportsTests(TestCase):
         Task.objects.create(project=self.project, milestone=m, title="Draft", status="doing", order=1)
         # Advisor
         self.advisor = User.objects.create_user(username="advisor", password="pass", email="advisor@example.com")
-        Profile.objects.create(user=self.advisor, role="advisor")
+        Profile.objects.update_or_create(user=self.advisor, defaults={"role": "advisor"})
         self.client.login(username="advisor", password="pass")
 
     def test_advisor_export_json(self):
@@ -39,4 +39,3 @@ class AdvisorExportsTests(TestCase):
         self.assertIn("project_id", header)
         rows = list(reader)
         self.assertTrue(any(str(self.project.id) in row for row in rows))
-

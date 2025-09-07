@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-bs-theme="{{ theme|default:'light' }}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,17 +7,23 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
   <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <!-- Avoid 404 favicon request by providing a small inline SVG icon -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='40' fill='%230d6efd'/%3E%3Ctext x='50' y='58' font-size='40' text-anchor='middle' fill='white'%3ED%3C/text%3E%3C/svg%3E" />
   <style>
     /* Align controls on the dashboard task rows */
-    .task-grid { display: grid; grid-template-columns: 1fr 220px 280px 120px 120px; column-gap: .5rem; align-items: center; }
+    .task-grid { display: grid; grid-template-columns: 1fr 220px; column-gap: .5rem; align-items: center; }
+    .task-grid.full { grid-template-columns: 1fr 220px 280px 120px 120px; }
     .task-actions { display:flex; flex-wrap: wrap; gap: .25rem; align-items: center; }
     .task-target form { display:inline-flex; align-items:center; gap:.25rem; }
     .task-target input[type=number] { width: 6.5rem; }
     .task-target .btn { width: 80px; }
+    .progress-slider { width: 160px; display:inline-block; vertical-align:middle; }
     /* Subtle row flash on update */
     tr.task-row { transition: background-color .6s ease; }
     tr.task-row.flash { background-color: #fff3cd; }
     .badge-fixed { display: inline-block; min-width: 88px; text-align: center; font-size: .875rem; }
+    .badge-tight { padding: .2rem .45rem; font-size: .72rem; line-height: 1; }
+    .nowrap { white-space: nowrap; }
     .btn-icon { padding: .25rem .5rem; line-height: 1; }
     .hint-muted { color: #6c757d; font-style: italic; }
     .saved-chip { font-size: .75rem; color: #198754; opacity: 0; margin-left: .25rem; }
@@ -27,7 +33,17 @@
     @keyframes sectionFlash { 0% { background-color: #fff7e6; } 100% { background-color: transparent; } }
     #tasks-section.section-flash { animation: sectionFlash .8s ease-in-out; }
     .tip { display:inline-block; width:18px; height:18px; line-height:16px; text-align:center; font-size:12px; border:1px solid #ccc; border-radius:50%; color:#6c757d; cursor:help; }
-    @media (max-width: 900px){
+    /* Toolbar + chips */
+    .toolbar { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:flex-end; }
+    .toolbar .form-label { font-size:.85rem; color:#6c757d; margin-bottom:.25rem; }
+    .chip { border-radius:999px; padding:.25rem .6rem; border:1px solid #dee2e6; background:#fff; font-size:.875rem; }
+    .chip.active { background:#0d6efd0d; border-color:#cfe2ff; color:#0d6efd; }
+    .muted-link { color:#6c757d !important; text-decoration:none; }
+    .muted-link:hover { text-decoration:underline; }
+    /* Softer table dividers */
+    .task-table tbody tr td { border-top-color:#f1f3f5; }
+    .section-note { color:#6c757d; font-size:.9rem; }
+  @media (max-width: 900px){
       /* Stack on narrow screens */
       .task-grid { grid-template-columns: 1fr; row-gap: .25rem; }
       .task-target .btn { width: auto; }
@@ -42,10 +58,34 @@
       <ul class="navbar-nav ms-auto">
         {% if user.is_authenticated %}
         <li class="nav-item"><a class="nav-link" href="{% url 'dashboard' %}">Dashboard</a></li>
+        {% if not simple_mode %}
         <li class="nav-item"><a class="nav-link" href="{% url 'wordlogs' %}">Writing</a></li>
+        {% endif %}
         <li class="nav-item"><a class="nav-link" href="{% url 'feedback' %}">Feedback</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'project_notes' %}">Notes</a></li>
-        <li class="nav-item"><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
+        {% if user.profile.role == 'advisor' or user.profile.role == 'admin' %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'advisor_dashboard' %}">Advisor</a></li>
+        {% endif %}
+        {% if user.is_staff or user.profile.role == 'admin' %}
+        <li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>
+        <li class="nav-item"><a class="nav-link" href="/admin/tracker/appsettings/">Settings</a></li>
+        {% endif %}
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'toggle_theme' %}">
+            {% if theme == 'dark' %}Light{% else %}Dark{% endif %}
+          </a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            Account
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{% url 'calendar_settings' %}">Calendar</a></li>
+            <li><a class="dropdown-item" href="{% url 'password_change' %}">Change Password</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{% url 'logout' %}">Logout</a></li>
+          </ul>
+        </li>
         {% else %}
         <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
         <li class="nav-item"><a class="nav-link" href="{% url 'signup' %}">Sign up</a></li>
@@ -123,6 +163,36 @@
         news.forEach(function(el){ try { new bootstrap.Toast(el).show(); el.removeAttribute('data-autonew'); } catch(e){} });
       }
     });
+
+    // Delegate change handling for task progress sliders (no inline JS)
+    document.addEventListener('change', function(e){
+      var r = e.target;
+      if (!r.classList || !r.classList.contains('progress-slider')) return;
+      if (r.disabled) return;
+      var v = parseInt(r.value || '0', 10);
+      var st = (v === 0 ? 'todo' : (v === 100 ? 'done' : 'doing'));
+      // Update hidden field in the slider's form (if present)
+      try { var hid = r.form ? r.form.querySelector('input[name="status"]') : null; if (hid) hid.value = st; } catch(err){}
+      // Find the matching Status select and submit its form via HTMX
+      try {
+        var sel = null;
+        if (r.dataset && r.dataset.statusId) sel = document.getElementById(r.dataset.statusId);
+        if (!sel) { var tr = r.closest('tr'); if (tr) sel = tr.querySelector('select[name="status"]'); }
+        if (sel) {
+          sel.value = st;
+          Array.prototype.forEach.call(sel.options, function(o){ o.selected = (o.value === st); });
+          try { sel.dispatchEvent(new Event('change', {bubbles:true})); } catch(err){}
+          var fsel = sel.closest('form');
+          if (fsel) { try { fsel.requestSubmit(); } catch(err){ fsel.submit(); } }
+        }
+      } catch(err){}
+    });
   </script>
+  <!-- Global tick marks for progress sliders -->
+  <datalist id="progressTicks">
+    <option value="0"></option>
+    <option value="50"></option>
+    <option value="100"></option>
+  </datalist>
 </body>
 </html>

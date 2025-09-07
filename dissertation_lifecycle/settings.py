@@ -7,6 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-me')
 DEBUG = os.getenv('DEBUG', '1') == '1'
+SIMPLE_PROGRESS_MODE = os.getenv('SIMPLE_PROGRESS_MODE', '0') == '1'
 
 # Hosts and CSRF
 if DEBUG:
@@ -23,8 +24,17 @@ else:
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
 if not CSRF_TRUSTED_ORIGINS:
-    # Common Fly origin (update via env for custom domains)
-    CSRF_TRUSTED_ORIGINS = ["https://*.fly.dev"]
+    # Sensible defaults for local dev and Fly
+    if DEBUG:
+        CSRF_TRUSTED_ORIGINS = [
+            "http://127.0.0.1",
+            "http://127.0.0.1:8000",
+            "http://localhost",
+            "http://localhost:8000",
+        ]
+    else:
+        # Common Fly origin (update via env for custom domains)
+        CSRF_TRUSTED_ORIGINS = ["https://*.fly.dev"]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -61,6 +71,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'tracker.context.simple_mode',
             ],
         },
     },
@@ -103,9 +114,10 @@ else:
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 10}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {'NAME': 'tracker.validators.ComplexityValidator'},
 ]
 
 LANGUAGE_CODE = 'en-us'
@@ -115,7 +127,12 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.getenv('STATIC_ROOT', str(BASE_DIR / 'staticfiles'))
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# Use Django 4.2+ STORAGES setting to configure staticfiles backend (silences deprecation warnings)
+STORAGES = {
+    'staticfiles': {
+        'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
+    },
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.getenv('UPLOAD_ROOT', str(BASE_DIR / 'uploads'))
@@ -148,6 +165,15 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', '1') == '1'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', '0') == '1'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'no-reply@example.com')
+
+# Optional webhooks for advisor digests/alerts
+SLACK_WEBHOOK_URL = os.getenv('SLACK_WEBHOOK_URL', '')
+TEAMS_WEBHOOK_URL = os.getenv('TEAMS_WEBHOOK_URL', '')
+# Optional: limit lines posted to webhooks
+WEBHOOK_MAX_LINES = int(os.getenv('WEBHOOK_MAX_LINES', '80'))
+
+# Optional MkDocs site serving (built docs under /site)
+MKDOCS_SITE_DIR = os.getenv('MKDOCS_SITE_DIR', str(BASE_DIR / 'site'))
 
 # Security in production
 if not DEBUG:
