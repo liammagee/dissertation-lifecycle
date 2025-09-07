@@ -16,6 +16,7 @@ help:
 	@echo "  make samples       # create sample admin/advisor/student (+project/logs) on Fly"
 	@echo "  make test          # run pytest locally"
 	@echo "  make dev-deps      # install dev/test dependencies"
+	@echo "  make docs-serve    # serve MkDocs locally (http://127.0.0.1:8001)"
 	@echo "  make sync          # reconcile milestones on Fly (sync_milestones)"
 	@echo "  make sync-local    # reconcile milestones locally"
 
@@ -71,6 +72,9 @@ test:
 
 dev-deps:
 	./venv/bin/pip install -r requirements-dev.txt
+
+docs-serve:
+	./venv/bin/mkdocs serve -a 127.0.0.1:8001
 
 sync:
 	fly ssh console -C "python manage.py sync_milestones"

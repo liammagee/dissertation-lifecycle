@@ -22,4 +22,3 @@ Implications
 - Single-region volume implies one primary region for writes; scale reads with multiple machines if needed.
 - Backups must be explicit (DB + volume snapshots). We’ll document a `fly volumes snapshot` + DB backup cadence.
 - If later we require global object storage, we can add a pluggable storage backend without changing models.
-

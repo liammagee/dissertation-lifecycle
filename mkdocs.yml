@@ -1,0 +1,19 @@
+site_name: Dissertation Lifecycle
+site_description: Documentation site for the Dissertation Lifecycle app
+repo_url: https://github.com/your-org/dissertation-lifecycle
+theme:
+  name: mkdocs
+nav:
+  - Home: index.md
+  - Operations Runbook: ops.md
+  - Roadmap: roadmap.md
+  - Architecture Decisions:
+      - ADR-0001 Architecture: adr/0001-architecture.md
+  - Data Model: data-model.md
+  - Project README: ../README.md
+docs_dir: docs
+markdown_extensions:
+  - toc:
+      permalink: true
+  - tables
+  - admonition

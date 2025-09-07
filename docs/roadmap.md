@@ -1,4 +1,4 @@
-# Dissertation Tracking Software — TODO Plan
+# Dissertation Tracking Software — Roadmap
 
 Legend: [ ] pending, [~] in progress, [x] done
 

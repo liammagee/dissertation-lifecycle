@@ -115,9 +115,11 @@ Each is stored under `sections/<name>.md` and initialized with a brief template.
 
 ## Notes
 
-- This tool uses only the Python standard library (no installs required).
+- This tool uses only the Python standard library (no installs required) for the CLI; the web app uses Django.
 - You can organize references and assets however you like; this tool only manages section files and metadata.
 - For more sections or customization, you can manually add Markdown files and include them during export by copying content into the canonical section files.
+
+More docs: see `docs/README.md` for the documentation index.
 
 ## Visual Progress & Lifecycles
 
@@ -157,6 +159,7 @@ Local setup
 Key URLs
 - `/signup` student self‑registration
 - `/login` and `/logout`
+- Change password while logged in: `/password-change/` (uses stronger policy — 10+ chars and mixed character types)
 - `/dashboard` student dashboard (tasks and completion)
 - `/advisor` advisor dashboard (simple list of projects)
 - Advisor exports: `/advisor/export.json`, `/advisor/export.csv`
@@ -165,9 +168,10 @@ Key URLs
 - `/admin/` Django admin (manage templates, tasks, etc.)
 - Task detail/edit: `/tasks/<id>/` and `/tasks/<id>/edit/`
 - Writing logs CSV (student): `/writing/export.csv`
-  - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
+ - Optional query params: `start=YYYY-MM-DD`, `end=YYYY-MM-DD`, `milestone=<id>`
  - Auth: password reset — `/password-reset/`, `/password-reset/done/`, `/reset/<uidb64>/<token>/`, `/reset/done/`
  - Auth: resend activation — `/resend-activation/`
+ - Auth: change password — `/password-change/`, `/password-change/done/`
 
 Storage on Fly.io
 - Use a Fly Volume mounted at `/data`; set `UPLOAD_ROOT=/data/uploads`.
@@ -177,6 +181,22 @@ Storage on Fly.io
 
 - Install dev dependencies: `pip install -r requirements-dev.txt`
 - Run tests: `pytest -q` or `make test`
+
+### Upgrades
+
+- Local/dev
+  - Pull latest code, then run: `python manage.py migrate`
+  - If templates changed and you want the new simplified set: `python manage.py reset_templates && python manage.py seed_templates && python manage.py apply_core && python manage.py sync_milestones`
+  - Run tests: `pytest -q`
+- Fly.io
+  - Deploy: `fly deploy` (the `release_command` runs `python manage.py migrate`)
+  - If you need to reseed/apply templates for existing projects, run:
+    - `fly ssh console -C "python manage.py reset_templates --apply-core"`
+    - Then reconcile: `fly ssh console -C "python manage.py sync_milestones"`
+- New env vars (optional)
+  - Webhooks: `SLACK_WEBHOOK_URL`, `TEAMS_WEBHOOK_URL`, and `WEBHOOK_MAX_LINES` (default 80).
+  - Calendar tokens: no env changes; visit `/calendar/settings/` to manage per‑user token URLs.
+  - Password policy: stronger by default (min length 10 + complexity validator); no env required.
 
 ### Milestone Templates (Simplified)
 
@@ -296,6 +316,7 @@ Schedule it with your preferred mechanism:
 ### Security & Environment
 
 - In production (`DEBUG=0`), security flags are enabled: HTTPS redirect, secure cookies, HSTS, and proxy SSL header.
+- Password policy: minimum length 10; must include at least three of: lowercase, uppercase, digits, symbols.
 - Configure hosts and CSRF via env:
   - `ALLOWED_HOSTS=your.domain,other.domain`
   - `CSRF_TRUSTED_ORIGINS=https://your.domain,https://other.domain`
@@ -405,3 +426,7 @@ The workflow `.github/workflows/notify.yml` runs daily at 09:00 UTC or on demand
   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_STORAGE_BUCKET_NAME`
   - Optional: `AWS_S3_REGION_NAME`, `AWS_S3_ENDPOINT_URL`, `AWS_S3_SIGNATURE_VERSION`, `AWS_S3_CUSTOM_DOMAIN`, `AWS_QUERYSTRING_AUTH=1`
   - This switches `DEFAULT_FILE_STORAGE` to S3 via `django-storages`.
+
+## Operations Runbook
+
+For admin/ops procedures, see `docs/ops.md`.
