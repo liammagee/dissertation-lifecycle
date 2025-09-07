@@ -5,6 +5,17 @@ Quick links to project documentation and operational guides.
 - Getting Started & Deployment
   - Install, run, testing, and Fly.io deployment: see the top‑level `README.md`.
 
+<div class="hero">
+  <img class="logo" src="assets/logo.svg" alt="Dissertation Lifecycle" />
+  <h1>Dissertation Lifecycle</h1>
+  <p class="tagline">Track milestones, writing progress, documents and advisor feedback.</p>
+  <div class="buttons">
+    <a class="md-button md-button--primary" href="ops.md">Operations Runbook</a>
+    <a class="md-button" href="roadmap.md">Roadmap</a>
+    <a class="md-button" href="adr/0001-architecture.md">Architecture</a>
+  </div>
+</div>
+
 ## About This Project
 
 This project’s full README (overview, quickstart, and deployment) lives in the repository root:

@@ -1,0 +1,32 @@
+.hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
+  padding: 3rem 1rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(63,81,181,0.08), rgba(103,58,183,0.08));
+}
+.hero img.logo {
+  width: 88px;
+  height: 88px;
+}
+.hero h1 {
+  margin: .25rem 0 0 0;
+}
+.hero p.tagline {
+  color: var(--md-default-fg-color--light);
+  margin: 0;
+}
+.hero .buttons {
+  display: flex;
+  gap: .6rem;
+  flex-wrap: wrap;
+  margin-top: .5rem;
+}
+.hero .buttons a {
+  border-radius: 999px;
+  padding: .45rem .9rem;
+}
