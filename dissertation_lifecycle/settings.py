@@ -172,6 +172,9 @@ TEAMS_WEBHOOK_URL = os.getenv('TEAMS_WEBHOOK_URL', '')
 # Optional: limit lines posted to webhooks
 WEBHOOK_MAX_LINES = int(os.getenv('WEBHOOK_MAX_LINES', '80'))
 
+# Optional MkDocs site serving (built docs under /site)
+MKDOCS_SITE_DIR = os.getenv('MKDOCS_SITE_DIR', str(BASE_DIR / 'site'))
+
 # Security in production
 if not DEBUG:
     SECURE_SSL_REDIRECT = os.getenv('SECURE_SSL_REDIRECT', '1') == '1'

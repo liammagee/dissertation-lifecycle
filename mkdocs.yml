@@ -1,17 +1,42 @@
 site_name: Dissertation Lifecycle
 site_description: Documentation site for the Dissertation Lifecycle app
 repo_url: https://github.com/your-org/dissertation-lifecycle
+repo_name: your-org/dissertation-lifecycle
 theme:
-  name: mkdocs
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - content.code.copy
+    - toc.integrate
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  logo: assets/logo.svg
+  favicon: assets/favicon.svg
 nav:
   - Home: index.md
   - Operations Runbook: ops.md
+  - Deployment: DEPLOY.md
   - Roadmap: roadmap.md
   - Architecture Decisions:
       - ADR-0001 Architecture: adr/0001-architecture.md
   - Data Model: data-model.md
-  - Project README: ../README.md
 docs_dir: docs
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/your-org/dissertation-lifecycle
 markdown_extensions:
   - toc:
       permalink: true

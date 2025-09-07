@@ -5,6 +5,14 @@ Quick links to project documentation and operational guides.
 - Getting Started & Deployment
   - Install, run, testing, and Fly.io deployment: see the top‑level `README.md`.
 
+## About This Project
+
+This project’s full README (overview, quickstart, and deployment) lives in the repository root:
+
+- GitHub: https://github.com/your-org/dissertation-lifecycle
+
+We mirror key operational docs here, and keep the main README as the concise starting point for developers.
+
 - Operations Runbook
   - Day‑to‑day admin and troubleshooting steps: `docs/ops.md`
 
