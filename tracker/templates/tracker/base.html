@@ -167,39 +167,49 @@
       }
     });
 
-    // Delegate handling for task progress sliders (submit on input for responsiveness)
-    function handleSliderChange(r){
-      if (!r || r.disabled) return;
-      var v = parseInt(r.value || '0', 10);
-      var st = (v === 0 ? 'todo' : (v === 100 ? 'done' : 'doing'));
-      try {
-        var sel = null;
-        if (r.dataset && r.dataset.statusId) sel = document.getElementById(r.dataset.statusId);
-        if (!sel) { var tr = r.closest('tr'); if (tr) sel = tr.querySelector('select[name="status"]'); }
-        if (sel) {
-          sel.value = st;
-          Array.prototype.forEach.call(sel.options, function(o){ o.selected = (o.value === st); });
-          var fsel = sel.closest('form');
-          if (fsel) {
-            if (window.htmx) {
-              try { fsel.requestSubmit(); } catch(err) { /* ignore */ }
-            }
-          }
-        }
-      } catch(err){}
-    }
     // Submit only on change (on release) to avoid rapid refresh while dragging
     document.addEventListener('change', function(e){
       var r = e.target;
-      if (r && r.classList && r.classList.contains('progress-slider')) handleSliderChange(r);
+      // Slider changed: update hidden fields and submit its form
+      if (r && r.classList && r.classList.contains('progress-slider')) {
+        e.stopPropagation(); // Prevent event from bubbling to parent hx-trigger forms
+        if (!r || r.disabled) return;
+        var v = parseInt(r.value || '0', 10);
+        var st = (v === 0 ? 'todo' : (v === 100 ? 'done' : 'doing'));
+        var f = r.form;
+        if (f) { // The form now contains both slider and select
+          var sel = f.querySelector('select[name="status"]');
+          var d_sel = document.querySelector('select[name="status-display"][onchange*="' + f.id + '"]');
+          var pct = f.querySelector('input[name="percent"]');
+          if (sel) sel.value = st;
+          if (d_sel) d_sel.value = st;
+          if (pct) pct.value = v;
+          f.requestSubmit();
+        }
+      }
+      // Visible status dropdown changed: update slider and submit form
+      if (r && r.getAttribute('name') === 'status-display') {
+        e.stopPropagation();
+        var v = r.value;
+        var p = (v === 'done' ? 100 : (v === 'todo' ? 0 : 50));
+        var form_id = r.getAttribute('onchange').match(/getElementById\('([^']+)'\)/)[1];
+        var f = document.getElementById(form_id);
+        if (f) f.querySelector('.progress-slider').value = p;
+      }
     });
   </script>
   <!-- Global tick marks for progress sliders -->
   <datalist id="progressTicks">
     <option value="0"></option>
-    <option value="25"></option>
+    <option value="10"></option>
+    <option value="20"></option>
+    <option value="30"></option>
+    <option value="40"></option>
     <option value="50"></option>
-    <option value="75"></option>
+    <option value="60"></option>
+    <option value="70"></option>
+    <option value="80"></option>
+    <option value="90"></option>
     <option value="100"></option>
   </datalist>
 </body>

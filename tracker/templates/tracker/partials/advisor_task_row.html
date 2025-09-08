@@ -31,12 +31,24 @@
     {% endif %}
   </td>
   <td>
-    <form method="post" action="{% url 'task_status' task.pk %}" hx-post="{% url 'task_status' task.pk %}" hx-target="#adv-task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
-      <select name="status" class="form-select form-select-sm" onchange="this.form.requestSubmit()">
+    <form id="adv-form-{{ task.pk }}" method="post" action="{% url 'task_status' task.pk %}" hx-post="{% url 'task_status' task.pk %}" hx-target="#adv-task-{{ task.pk }}" hx-swap="outerHTML">{% csrf_token %}
+      <input type="hidden" name="percent" value="{{ task.progress_percent }}" />
+      <input type="range" min="0" max="100" step="5" list="progressTicks"
+             value="{{ task.progress_percent }}"
+             class="form-range flex-grow-1 progress-slider"
+             title="Progress: move to update status (0%=To Do, 1-99%=Doing, 100%=Done)" style="min-width:120px;" />
+      <select name="status" class="form-select d-none" onchange="this.form.requestSubmit()">
         <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
         <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
         <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
       </select>
     </form>
+  </td>
+  <td>
+    <select name="status-display" class="form-select form-select-sm" onchange="var f=document.getElementById('adv-form-{{ task.pk }}'); f.querySelector('select[name=status]').value=this.value; f.requestSubmit();">
+      <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
+      <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
+      <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
+    </select>
   </td>
 </tr>

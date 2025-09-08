@@ -173,6 +173,12 @@ def dashboard(request):
     if not project:
         return redirect('project_new')
     qs = project.tasks.select_related('milestone').all()
+    milestone_id = request.GET.get('milestone')
+    if milestone_id:
+        try:
+            qs = qs.filter(milestone_id=int(milestone_id))
+        except Exception:
+            pass
     # Quick filters (student)
     status = request.GET.get('status')
     if status in ('todo', 'doing', 'done'):
@@ -196,18 +202,6 @@ def dashboard(request):
     if q:
         from django.db.models import Q
         qs = qs.filter(Q(title__icontains=q) | Q(description__icontains=q))
-    milestone_id = request.GET.get('milestone')
-    if milestone_id:
-        try:
-            qs = qs.filter(milestone_id=int(milestone_id))
-        except Exception:
-            pass
-    milestone_id = request.GET.get('milestone')
-    if milestone_id:
-        try:
-            qs = qs.filter(milestone_id=int(milestone_id))
-        except Exception:
-            pass
     tasks = list(qs)
     # Stage-gated milestones (must be done in order)
     GATED_KEYS = [
@@ -400,11 +394,9 @@ def task_status(request, pk: int):
             if request.headers.get('HX-Request'):
                 tpl = 'tracker/partials/task_row.html' if owner_ok else 'tracker/partials/advisor_task_row.html'
                 show_effort = (not getattr(settings, 'SIMPLE_PROGRESS_MODE', False)) and int(weights.get('effort', 0)) > 0
-                return render(request, tpl, {'task': task, 'show_effort': show_effort})
-            nxt = request.POST.get('next') or ''
-            if nxt:
-                return redirect(nxt)
-            return redirect('dashboard')
+                ctx = {'task': task, 'show_effort': show_effort}
+                return render(request, tpl, ctx)
+    # Fallback or non-POST
     return redirect('dashboard')
 
 

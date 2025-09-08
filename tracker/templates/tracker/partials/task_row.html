@@ -116,40 +116,33 @@
   </td>
   <td>{{ task.due_date|default:'—' }}</td>
   <td>
-    <form method="post" action="{% url 'task_status' task.pk %}">{% csrf_token %}
-      <input type="hidden" name="status" value="{{ task.status }}" />
-      <div class="d-flex align-items-center" style="min-width:200px">
-        <span class="text-muted small me-2" style="width:2ch">0%</span>
-        {% if task.gated_blocked %}
-          <span class="tooltip-wrapper" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first">
-          <input type="range" min="0" max="100" step="5" list="progressTicks" data-status-id="status-{{ task.pk }}"
-                   value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
-                   class="form-range flex-grow-1 progress-slider" disabled aria-disabled="true" style="pointer-events:none;" />
-          </span>
-        {% else %}
-          <input type="range" min="0" max="100" step="5" list="progressTicks" data-status-id="status-{{ task.pk }}"
-                 value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
-                 class="form-range flex-grow-1 progress-slider"
-                 title="Progress: move to update status (0%=To Do, 1–99%=Doing, 100%=Done)" />
-        {% endif %}
-        <span class="text-muted small ms-2" style="width:3ch;text-align:right">100%</span>
-      </div>
-    </form>
-  </td>
-  <td>
-    <form method="post" action="{% url 'task_status' task.pk %}" hx-post="{% url 'task_status' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML" hx-indicator="#tsk-{{ task.pk }}-spin">{% csrf_token %}
-      <div class="input-group input-group-sm">
-        <select id="status-{{ task.pk }}" name="status" class="form-select" style="min-width: 140px;" onchange="this.form.requestSubmit()" {% if task.gated_blocked %}disabled aria-disabled="true" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first"{% endif %}>
+    <form id="form-{{ task.pk }}" method="post" action="{% url 'task_status' task.pk %}" hx-post="{% url 'task_status' task.pk %}" hx-target="#task-{{ task.pk }}" hx-swap="outerHTML" hx-indicator="#tsk-{{ task.pk }}-spin" class="status-form" hx-trigger="never">{% csrf_token %}
+      <input type="hidden" name="percent" value="{{ task.progress_percent }}" />
+      {% if task.gated_blocked %}
+        <span class="tooltip-wrapper" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first">
+        <input type="range" min="0" max="100" step="5" list="progressTicks"
+                 value="{{ task.progress_percent }}"
+                 class="form-range flex-grow-1 progress-slider" disabled aria-disabled="true" style="pointer-events:none;" />
+        </span>
+      {% else %}
+        <input type="range" min="0" max="100" step="5" list="progressTicks"
+               value="{{ task.progress_percent }}"
+               class="form-range flex-grow-1 progress-slider"
+               title="Progress: move to update status (0%=To Do, 1-99%=Doing, 100%=Done)" style="min-width:120px;" />
+      {% endif %}
+      <select id="status-{{ task.pk }}" name="status" class="form-select d-none" onchange="this.form.requestSubmit()">
           <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
           <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
           <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
         </select>
-        <span class="input-group-text"><i class="bi bi-caret-down-fill"></i></span>
-      </div>
-      {% if task.gated_blocked %}
-        <div class="text-muted small mt-1"><i class="bi bi-lock"></i> Waiting for: {{ task.gated_wait }}</div>
-      {% endif %}
     </form>
+  </td>
+  <td>
+    <select name="status-display" class="form-select form-select-sm" onchange="var f=document.getElementById('form-{{ task.pk }}'); f.querySelector('select[name=status]').value=this.value; f.requestSubmit();" {% if task.gated_blocked %}disabled aria-disabled="true" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first"{% endif %} data-form-id="form-{{ task.pk }}">
+      <option value="todo" {% if task.status == 'todo' %}selected{% endif %}>To Do</option>
+      <option value="doing" {% if task.status == 'doing' %}selected{% endif %}>Doing</option>
+      <option value="done" {% if task.status == 'done' %}selected{% endif %}>Done</option>
+    </select>
   </td>
 </tr>
 {% if toast_message %}
