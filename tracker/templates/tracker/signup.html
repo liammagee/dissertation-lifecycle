@@ -2,41 +2,55 @@
 {% load forms_extras %}
 {% block content %}
 <div class="row justify-content-center">
-  <div class="col-md-6">
-    <h2>Sign Up</h2>
-    <form method="post">{% csrf_token %}
-      {{ form.non_field_errors }}
-      <div class="mb-3">
-        <label class="form-label" for="id_username">Username</label>
-        {{ form.username|add_class:'form-control' }}
-        {{ form.username.errors }}
+  <div class="col-lg-7 col-xl-6">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="mb-3">Sign Up</h2>
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+        {% endif %}
+        <form method="post" novalidate autocomplete="on">{% csrf_token %}
+          <div class="mb-3">
+            <label class="form-label" for="id_username">Username</label>
+            {{ form.username|add_class:'form-control'|add_error_class:'is-invalid'|attr:'autocomplete:username'|render }}
+            {% if form.username.errors %}<div class="invalid-feedback">{{ form.username.errors|join:', ' }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_email">Email</label>
+            {{ form.email|add_class:'form-control'|add_error_class:'is-invalid'|attr:'autocomplete:email'|render }}
+            {% if form.email.errors %}<div class="invalid-feedback">{{ form.email.errors|join:', ' }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_password1">Password</label>
+            <div class="input-group">
+              {{ form.password1|add_class:'form-control'|add_error_class:'is-invalid'|attr:'autocomplete:new-password'|attr:'inputmode:latin-password'|render }}
+              <button class="btn btn-outline-secondary" type="button" id="btn-suggest" title="Generate a strong password">Suggest</button>
+              <button class="btn btn-outline-secondary" type="button" id="btn-reveal" aria-pressed="false" title="Show/hide password"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-outline-secondary" type="button" id="btn-copy" title="Copy password"><i class="bi bi-clipboard"></i></button>
+            </div>
+            <div class="form-text">Minimum 10 characters. Include at least three of: lowercase, uppercase, digits, symbols.</div>
+            <div class="progress mt-1" style="height:6px">
+              <div id="pwbar" class="progress-bar bg-danger" style="width: 0%"></div>
+            </div>
+            {% if form.password1.errors %}<div class="text-danger small mt-1">{{ form.password1.errors|join:', ' }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_password2">Confirm Password</label>
+            {{ form.password2|add_class:'form-control'|add_error_class:'is-invalid'|attr:'autocomplete:new-password'|render }}
+            {% if form.password2.errors %}<div class="invalid-feedback d-block">{{ form.password2.errors|join:', ' }}</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="id_invite_code">Invite Code</label>
+            {{ form.invite_code|add_class:'form-control'|add_error_class:'is-invalid'|render }}
+            {% if form.invite_code.errors %}<div class="invalid-feedback d-block">{{ form.invite_code.errors|join:', ' }}</div>{% endif %}
+          </div>
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Create account</button>
+            <a class="btn btn-outline-secondary" href="{% url 'login' %}">Back to Login</a>
+          </div>
+        </form>
       </div>
-      <div class="mb-3">
-        <label class="form-label" for="id_email">Email</label>
-        {{ form.email|add_class:'form-control' }}
-        {{ form.email.errors }}
-      </div>
-      <div class="mb-3">
-        <label class="form-label" for="id_password1">Password</label>
-        {{ form.password1|add_class:'form-control' }}
-        <div class="form-text">Minimum 10 characters. Include at least three of: lowercase, uppercase, digits, symbols.</div>
-        <div class="progress mt-1" style="height:6px">
-          <div id="pwbar" class="progress-bar bg-danger" style="width: 0%"></div>
-        </div>
-        {{ form.password1.errors }}
-      </div>
-      <div class="mb-3">
-        <label class="form-label" for="id_password2">Confirm Password</label>
-        {{ form.password2|add_class:'form-control' }}
-        {{ form.password2.errors }}
-      </div>
-      <div class="mb-3">
-        <label class="form-label" for="id_invite_code">Invite Code</label>
-        {{ form.invite_code|add_class:'form-control' }}
-        {{ form.invite_code.errors }}
-      </div>
-      <button class="btn btn-primary" type="submit">Create account</button>
-    </form>
+    </div>
   </div>
 {% endblock %}
 <script>
@@ -60,7 +74,66 @@
       bar.classList.remove('bg-danger','bg-warning','bg-success');
       bar.classList.add(pct >= 75 ? 'bg-success' : (pct >= 45 ? 'bg-warning' : 'bg-danger'));
     }
+    function gen(length){
+      // Ensure at least one from each category, then fill the rest randomly
+      length = Math.max(12, length || 18);
+      var lowers = 'abcdefghijklmnopqrstuvwxyz';
+      var uppers = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      var digits = '0123456789';
+      var symbols = '!@#$%^&*()-_=+[]{};:,.?/'
+      var all = lowers + uppers + digits + symbols;
+      function randChar(pool){
+        if (window.crypto && window.crypto.getRandomValues){
+          var u = new Uint32Array(1); window.crypto.getRandomValues(u); return pool[u[0] % pool.length];
+        }
+        return pool[Math.floor(Math.random()*pool.length)];
+      }
+      var out = [randChar(lowers), randChar(uppers), randChar(digits), randChar(symbols)];
+      while (out.length < length){ out.push(randChar(all)); }
+      // Shuffle
+      for (var i = out.length - 1; i > 0; i--) {
+        var j = Math.floor((window.crypto && window.crypto.getRandomValues ? (window.crypto.getRandomValues(new Uint32Array(1))[0] % (i+1)) : Math.random() * (i+1)));
+        var t = out[i]; out[i] = out[j]; out[j] = t;
+      }
+      return out.join('');
+    }
+    function suggest(){
+      var p1 = document.getElementById('id_password1');
+      var p2 = document.getElementById('id_password2');
+      var v = gen(18);
+      if (p1) p1.value = v;
+      if (p2) p2.value = v;
+      update();
+      try { p1.dispatchEvent(new Event('input', {bubbles:true})); } catch(e){}
+    }
+    function toggle(){
+      var p1 = document.getElementById('id_password1');
+      var p2 = document.getElementById('id_password2');
+      if (!p1 || !p2) return;
+      var t = (p1.type === 'password') ? 'text' : 'password';
+      p1.type = t; p2.type = t;
+      var btn = document.getElementById('btn-reveal');
+      if (btn) btn.setAttribute('aria-pressed', String(t==='text'));
+    }
+    function copyPw(){
+      var p1 = document.getElementById('id_password1');
+      if (!p1) return;
+      navigator.clipboard && navigator.clipboard.writeText(p1.value).catch(function(){});
+    }
     document.addEventListener('input', function(e){ if (e.target && e.target.id === 'id_password1') update(); });
-    window.addEventListener('load', update);
+    // Robust event delegation so buttons always work
+    document.addEventListener('click', function(e){
+      var id = (e.target && (e.target.id || (e.target.closest && (e.target.closest('#btn-suggest') && 'btn-suggest') || (e.target.closest && e.target.closest('#btn-reveal') && 'btn-reveal') || (e.target.closest && e.target.closest('#btn-copy') && 'btn-copy')))) || '';
+      if (id === 'btn-suggest'){ e.preventDefault(); suggest(); }
+      if (id === 'btn-reveal'){ e.preventDefault(); toggle(); }
+      if (id === 'btn-copy'){ e.preventDefault(); copyPw(); }
+    });
+    window.addEventListener('DOMContentLoaded', function(){
+      update();
+      // Pre-suggest a strong password if empty to encourage using it (browser should offer to save on success)
+      var p1 = document.getElementById('id_password1');
+      var p2 = document.getElementById('id_password2');
+      if (p1 && p2 && !p1.value && !p2.value){ suggest(); }
+    });
   })();
   </script>

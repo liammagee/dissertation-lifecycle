@@ -17,6 +17,8 @@ help:
 	@echo "  make test          # run pytest locally"
 	@echo "  make dev-deps      # install dev/test dependencies"
 	@echo "  make docs-serve    # serve MkDocs locally (http://127.0.0.1:8001)"
+	@echo "  make e2e-setup     # install Playwright browsers"
+	@echo "  make e2e           # run end-to-end tests (Playwright)"
 	@echo "  make sync          # reconcile milestones on Fly (sync_milestones)"
 	@echo "  make sync-local    # reconcile milestones locally"
 
@@ -75,6 +77,12 @@ dev-deps:
 
 docs-serve:
 	./venv/bin/mkdocs serve -a 127.0.0.1:8001
+
+e2e-setup:
+	./venv/bin/python -m playwright install
+
+e2e:
+	./venv/bin/python -m pytest -q -m e2e
 
 sync:
 	fly ssh console -C "python manage.py sync_milestones"

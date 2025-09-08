@@ -182,6 +182,14 @@ Storage on Fly.io
 - Install dev dependencies: `pip install -r requirements-dev.txt`
 - Run tests: `pytest -q` or `make test`
 
+#### End‑to‑end (browser) tests
+
+- Install Playwright browsers (one‑time): `python -m playwright install` or `make e2e-setup`
+- Run E2E tests: `pytest -m e2e -q` or `make e2e`
+- Notes:
+  - Uses `pytest-playwright` against Django’s `live_server` fixture.
+  - Headless Chromium by default; set `PWDEBUG=1` to debug or `--headed` to view the browser.
+
 ### Upgrades
 
 - Local/dev

@@ -33,6 +33,24 @@ class PasswordChangeTests(TestCase):
         self.assertEqual(r.status_code, 200)
         self.assertIn('id="pwbar"', r.content.decode('utf-8'))
 
+
+class SignupViewTests(TestCase):
+    def test_signup_get_renders(self):
+        r = self.client.get(reverse('signup'))
+        self.assertEqual(r.status_code, 200)
+        self.assertIn('Sign Up', r.content.decode('utf-8'))
+
+    def test_signup_post_success(self):
+        resp = self.client.post(reverse('signup'), data={
+            'username': 'newuser',
+            'email': 'new@example.com',
+            'password1': 'Newpass#12345A',
+            'password2': 'Newpass#12345A',
+        })
+        # Redirect to project_new on success per views.signup
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn(reverse('project_new'), resp['Location'])
+
     def test_account_menu_links_present(self):
         # Create a project so dashboard renders without redirect
         from tracker.models import Project
