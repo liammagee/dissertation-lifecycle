@@ -1,8 +1,8 @@
 {% extends 'tracker/base.html' %}
 {% load md vis %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center">
-  <h2>{{ task.title }}
+<div class="d-flex justify-content-between align-items-center mb-1">
+  <h2 class="mb-0">{{ task.title }}
     {% if task.word_target and task.word_target|add:0 > 0 %}
       <span class="text-muted small ms-2">Target: {{ task.word_target }} words</span>
     {% endif %}
@@ -33,13 +33,13 @@
 
 <div class="row g-3">
   <div class="col-md-7">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Description</div>
       <div class="card-body">
         {{ task.description|linebreaks|default:"<span class='text-muted'>No description.</span>"|safe }}
       </div>
     </div>
-    <div class="card mt-3">
+    <div class="card mt-3 shadow-sm">
       <div class="card-header">My Notes</div>
       <div class="card-body">
         {{ task.user_notes|md|default:"<span class='text-muted'>No notes yet. Use Edit to add your notes.</span>"|safe }}
@@ -48,7 +48,7 @@
     </div>
   </div>
   <div class="col-md-5">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Guidance</div>
       <div class="card-body">
         {% if tpl and tpl.guidance_tips %}
@@ -66,7 +66,7 @@
       <a class="btn btn-sm btn-outline-primary" href="{% url 'task_detail' next_task.pk %}">Next Task → {{ next_task.title }}</a>
     </div>
     {% endif %}
-    <div class="card mt-3">
+    <div class="card mt-3 shadow-sm">
       <div class="card-header">Attachments</div>
       <div class="card-body">
         <form method="post" enctype="multipart/form-data" action="{% url 'upload_document' task.pk %}">{% csrf_token %}

@@ -1,9 +1,11 @@
 {% extends 'tracker/base.html' %}
 {% block content %}
-<h2>Project Notes</h2>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h2 class="mb-0">Project Notes</h2>
+</div>
 <div class="row g-3">
   <div class="col-md-5">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Add Note</div>
       <div class="card-body">
         <form method="post">{% csrf_token %}
@@ -14,7 +16,7 @@
     </div>
   </div>
   <div class="col-md-7">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Notes</div>
       <div class="card-body">
         {% if notes %}

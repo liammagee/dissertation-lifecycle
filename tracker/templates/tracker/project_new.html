@@ -1,15 +1,25 @@
 {% extends 'tracker/base.html' %}
 {% block content %}
-<h2>Create Your Dissertation Project</h2>
-<form method="post">{% csrf_token %}
-  <div class="row g-3">
-    <div class="col-md-8">{{ form.title.label_tag }} {{ form.title }}</div>
-    <div class="col-md-4">{{ form.expected_defense_date.label_tag }} {{ form.expected_defense_date }}</div>
-    <div class="col-12">{{ form.field_of_study.label_tag }} {{ form.field_of_study }}</div>
-    <div class="col-12 form-check">{{ form.apply_templates }} {{ form.apply_templates.label_tag }}</div>
-    <div class="col-12 form-check">{{ form.include_phd }} {{ form.include_phd.label_tag }}</div>
-    <div class="col-12 form-check">{{ form.include_detailed }} {{ form.include_detailed.label_tag }}</div>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="mb-3">Create Your Dissertation Project</h2>
+        <form method="post">{% csrf_token %}
+          <div class="row g-3">
+            <div class="col-md-8">{{ form.title.label_tag }} {{ form.title }}</div>
+            <div class="col-md-4">{{ form.expected_defense_date.label_tag }} {{ form.expected_defense_date }}</div>
+            <div class="col-12">{{ form.field_of_study.label_tag }} {{ form.field_of_study }}</div>
+            <div class="col-12 form-check">{{ form.apply_templates }} {{ form.apply_templates.label_tag }}</div>
+            <div class="col-12 form-check">{{ form.include_phd }} {{ form.include_phd.label_tag }}</div>
+            <div class="col-12 form-check">{{ form.include_detailed }} {{ form.include_detailed.label_tag }}</div>
+          </div>
+          <div class="mt-3">
+            <button class="btn btn-primary" type="submit">Create project</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
-  <button class="btn btn-primary" type="submit">Create project</button>
-</form>
+</div>
 {% endblock %}

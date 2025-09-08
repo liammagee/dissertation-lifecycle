@@ -1,7 +1,10 @@
 {% extends 'tracker/base.html' %}
 {% load vis md %}
 {% block content %}
-<h2>{{ project.title }} <span class="text-muted" style="font-size:.8em">by {{ project.student.username }}</span></h2>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h2 class="mb-0">{{ project.title }}</h2>
+  <span class="text-muted">by {{ project.student.username }}</span>
+  </div>
 {% if badges %}
   <div class="mb-2">
     {% for b in badges %}
@@ -11,7 +14,7 @@
 {% endif %}
 <div class="row g-3">
   <div class="col-lg-6">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span>Tasks</span>
         <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -145,7 +148,7 @@
     </div>
   </div>
   <div class="col-lg-6">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Project Notes</div>
       <div class="card-header d-flex justify-content-between align-items-center">
         <span>Project Notes</span>
@@ -175,7 +178,7 @@
   </div>
 
   <div class="col-lg-6">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Attachments</div>
       <div class="card-body">
         {% if docs %}
@@ -199,7 +202,7 @@
   </div>
 
   <div class="col-lg-6">
-    <div class="card">
+    <div class="card shadow-sm">
       <div class="card-header">Milestones</div>
       <div class="card-body">
         {% if milestone_progress %}

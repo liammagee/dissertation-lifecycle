@@ -1,0 +1,113 @@
+/*
+  Global theme for Dissertation Tracker
+  - Accessible focus styles
+  - Light/Dark palettes via data-bs-theme attribute
+  - Softer UI with subtle depth and motion
+*/
+
+:root {
+  --dt-bg: #f8f9fb;
+  --dt-surface: #ffffff;
+  --dt-text: #1f2937;
+  --dt-muted: #6b7280;
+  --dt-primary: #3f51b5; /* indigo */
+  --dt-primary-contrast: #ffffff;
+  --dt-ring: #7c3aed; /* violet */
+  --dt-border: #e5e7eb;
+}
+
+[data-bs-theme="dark"] {
+  --dt-bg: #0b0d12;
+  --dt-surface: #141824;
+  --dt-text: #e5e7eb;
+  --dt-muted: #9ca3af;
+  --dt-primary: #7c8ae3;
+  --dt-primary-contrast: #0b0d12;
+  --dt-ring: #a78bfa;
+  --dt-border: #2a2f3d;
+}
+
+html, body {
+  background: var(--dt-bg);
+  color: var(--dt-text);
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.55;
+}
+
+.app-container {
+  max-width: 1080px;
+}
+
+.navbar.app-navbar, .navbar {
+  border-bottom: 1px solid var(--dt-border);
+  background: linear-gradient(180deg, rgba(63,81,181,.08), rgba(63,81,181,0) 80%), var(--dt-surface) !important;
+}
+
+.navbar .nav-link, .navbar .navbar-brand { color: var(--dt-text) !important; }
+.navbar .nav-link:hover { color: var(--dt-primary) !important; }
+
+.card { background: var(--dt-surface); border-color: var(--dt-border); box-shadow: 0 8px 24px rgba(0,0,0,.04); }
+
+.btn-primary, .btn.btn-primary {
+  --bs-btn-bg: var(--dt-primary);
+  --bs-btn-border-color: var(--dt-primary);
+  --bs-btn-hover-bg: #2f3ea8;
+  --bs-btn-hover-border-color: #2f3ea8;
+  --bs-btn-active-bg: #2a3996;
+  --bs-btn-active-border-color: #2a3996;
+  --bs-btn-color: var(--dt-primary-contrast);
+}
+
+.btn-outline-secondary { transition: transform .06s ease; }
+.btn-outline-secondary:active { transform: scale(.97); }
+
+.form-control, .form-select {
+  border-color: var(--dt-border);
+  background-color: var(--dt-surface);
+  color: var(--dt-text);
+}
+.form-control:focus, .form-select:focus {
+  border-color: var(--dt-ring);
+  box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--dt-ring) 30%, transparent);
+}
+
+.table-hover tbody tr:hover { background: color-mix(in srgb, var(--dt-primary) 6%, transparent); }
+
+/* Skip link (visible on focus) */
+.skip-link {
+  position: absolute; left: 8px; top: -40px; z-index: 1000;
+  background: var(--dt-primary); color: var(--dt-primary-contrast); padding: .5rem .75rem;
+  border-radius: .5rem; text-decoration: none; box-shadow: 0 10px 24px rgba(0,0,0,.2);
+}
+.skip-link:focus { top: 8px; outline: none; }
+
+/* Focus visible for all interactive controls */
+*:focus-visible {
+  outline: 2px solid var(--dt-ring);
+  outline-offset: 2px;
+}
+
+/* Toast placement tweaks on mobile */
+@media (max-width: 600px){ .toast-container { left: 0; right: 0; bottom: 0; } }
+
+/* Dark-mode friendly borders */
+.border, .table, .dropdown-menu { border-color: var(--dt-border) !important; }
+.dropdown-menu { background: var(--dt-surface); }
+.dropdown-item { color: var(--dt-text); }
+.dropdown-item:hover { background: color-mix(in srgb, var(--dt-primary) 9%, transparent); }
+
+/* Headings rhythm */
+h1,h2,h3 { letter-spacing: .2px; }
+
+/* Small glow for primary badges */
+.badge.text-bg-primary { box-shadow: 0 0 0 .15rem color-mix(in srgb, var(--dt-primary) 30%, transparent); }
+
+/* Form hint text muted */
+.form-text { color: var(--dt-muted); }
+
+/* Make the theme toggle a little clearer */
+.navbar .nav-link .bi-sun, .navbar .nav-link .bi-moon { vertical-align: middle; }
+

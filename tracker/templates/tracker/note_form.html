@@ -1,10 +1,19 @@
 {% extends 'tracker/base.html' %}
 {% block content %}
-<h2>Edit Note</h2>
-<form method="post">{% csrf_token %}
-  {{ form.as_p }}
-  <button class="btn btn-primary" type="submit">Save</button>
-  <a class="btn btn-outline-secondary" href="{% url 'project_notes' %}">Cancel</a>
-</form>
+<div class="row justify-content-center">
+  <div class="col-lg-6 col-xl-5">
+    <div class="card shadow-sm">
+      <div class="card-body p-4">
+        <h2 class="mb-3">Edit Note</h2>
+        <form method="post">{% csrf_token %}
+          {{ form.as_p }}
+          <div class="d-flex gap-2">
+            <button class="btn btn-primary" type="submit">Save</button>
+            <a class="btn btn-outline-secondary" href="{% url 'project_notes' %}">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
-

@@ -1,7 +1,10 @@
 {% extends 'tracker/base.html' %}
 {% load vis %}
 {% block content %}
-<h2>{{ project.title }}</h2>
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h2 class="mb-0">{{ project.title }}</h2>
+  <span class="text-muted">Overall: <strong>{{ completion }}%</strong></span>
+</div>
 {% if quote %}
   <div class="alert alert-secondary py-2">
     <em>“{{ quote.text }}”</em>
@@ -15,19 +18,22 @@
     {% endfor %}
   </div>
 {% endif %}
-<div class="mb-3 d-flex align-items-center gap-3">
-  <div>{% donut completion 120 14 %}</div>
-  <div>
-    <div>Overall completion</div>
-    <div class="text-muted">{{ completion }}%</div>
-    <div class="text-muted small">Legend: donut shows project completion percentage.</div>
+<div class="mb-4">
+  <div class="card">
+    <div class="card-body d-flex align-items-center gap-3">
+      <div>{% donut completion 120 14 %}</div>
+      <div>
+        <div class="fw-semibold">Overall completion</div>
+        <div class="text-muted small">Donut shows project completion percentage.</div>
+      </div>
+    </div>
   </div>
- </div>
+</div>
 
 {% if milestone_progress %}
-<div class="mb-3">
-  <h5>Milestones</h5>
-  <div class="list-group">
+<div class="mb-4">
+  <h5 class="mb-2">Milestones</h5>
+  <div class="list-group shadow-sm">
     {% for mp in milestone_progress %}
       <div class="list-group-item d-flex align-items-center gap-3">
         <div>{% donut mp.percent 60 8 %}</div>
@@ -70,7 +76,7 @@
   <div class="text-muted small mt-1">Legend: center = more progress; ring distance indicates remaining work. Points represent milestones.</div>
 </div>
 
-<form method="get" class="mb-2" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input">
+<form method="get" class="mb-3" hx-get="." hx-target="#tasks-section" hx-select="#tasks-section" hx-push-url="true" hx-indicator="#tasks-spinner" hx-trigger="submit, change from:input, keyup changed delay:300ms from:input" role="search" aria-label="Filter tasks">
   <div class="toolbar">
     <div>
       <label class="form-label">Status</label>
@@ -127,7 +133,8 @@
 {% endif %}
 </div>
 
-<table class="table table-sm table-hover align-middle task-table">
+<div class="card shadow-sm">
+<table class="table table-sm table-hover align-middle task-table mb-0">
   <thead>
     <tr><th>Milestone</th><th>Task</th><th>Due</th><th>Progress</th><th>Status</th></tr>
   </thead>
@@ -146,6 +153,7 @@
     {% endfor %}
   </tbody>
 </table>
+</div>
 <div class="text-muted small mb-4 d-flex align-items-center justify-content-between">
   <span>
     Shortcuts: j/k or Arrow ↑/↓ to move focus; Shift+Arrow ↑/↓ to reorder within milestone.
