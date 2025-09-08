@@ -136,7 +136,7 @@
 <div class="card shadow-sm">
 <table class="table table-sm table-hover align-middle task-table mb-0">
   <thead>
-    <tr><th>Milestone</th><th>Task</th><th>Due</th><th>Progress</th><th>Status</th></tr>
+    <tr><th style="width:28px" aria-label="Reorder"></th><th>Milestone</th><th>Task</th><th>Due</th><th>Progress</th><th>Status</th></tr>
   </thead>
   <tbody>
     {% for task in tasks %}
@@ -245,7 +245,9 @@
     }
     var draggingId = null;
     document.addEventListener('dragstart', function(e){
-      var tr = e.target.closest && e.target.closest('tr.task-row');
+      var handle = e.target.closest && e.target.closest('.drag-handle');
+      if (!handle) return; // Only begin drag from explicit handle
+      var tr = handle.closest && handle.closest('tr.task-row');
       if (!tr) return;
       draggingId = tr.getAttribute('data-task-id');
       e.dataTransfer.effectAllowed = 'move';

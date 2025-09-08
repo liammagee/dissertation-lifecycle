@@ -167,16 +167,11 @@
       }
     });
 
-    // Delegate change handling for task progress sliders (no inline JS)
-    document.addEventListener('change', function(e){
-      var r = e.target;
-      if (!r.classList || !r.classList.contains('progress-slider')) return;
-      if (r.disabled) return;
+    // Delegate handling for task progress sliders (submit on input for responsiveness)
+    function handleSliderChange(r){
+      if (!r || r.disabled) return;
       var v = parseInt(r.value || '0', 10);
       var st = (v === 0 ? 'todo' : (v === 100 ? 'done' : 'doing'));
-      // Update hidden field in the slider's form (if present)
-      try { var hid = r.form ? r.form.querySelector('input[name="status"]') : null; if (hid) hid.value = st; } catch(err){}
-      // Find the matching Status select and submit its form via HTMX
       try {
         var sel = null;
         if (r.dataset && r.dataset.statusId) sel = document.getElementById(r.dataset.statusId);
@@ -184,17 +179,27 @@
         if (sel) {
           sel.value = st;
           Array.prototype.forEach.call(sel.options, function(o){ o.selected = (o.value === st); });
-          try { sel.dispatchEvent(new Event('change', {bubbles:true})); } catch(err){}
           var fsel = sel.closest('form');
-          if (fsel) { try { fsel.requestSubmit(); } catch(err){ fsel.submit(); } }
+          if (fsel) {
+            if (window.htmx) {
+              try { fsel.requestSubmit(); } catch(err) { /* ignore */ }
+            }
+          }
         }
       } catch(err){}
+    }
+    // Submit only on change (on release) to avoid rapid refresh while dragging
+    document.addEventListener('change', function(e){
+      var r = e.target;
+      if (r && r.classList && r.classList.contains('progress-slider')) handleSliderChange(r);
     });
   </script>
   <!-- Global tick marks for progress sliders -->
   <datalist id="progressTicks">
     <option value="0"></option>
+    <option value="25"></option>
     <option value="50"></option>
+    <option value="75"></option>
     <option value="100"></option>
   </datalist>
 </body>

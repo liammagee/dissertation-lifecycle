@@ -369,6 +369,26 @@ def task_status(request, pk: int):
         form = TaskStatusForm(request.POST, instance=task)
         if form.is_valid():
             task = form.save()
+            # Optional fine-grained percent from slider
+            try:
+                pct_raw = request.POST.get('percent')
+                if pct_raw is not None:
+                    pct = int(pct_raw)
+                    if pct < 0:
+                        pct = 0
+                    elif pct > 100:
+                        pct = 100
+                    task.progress_percent = pct
+                    # Keep status consistent with percent
+                    if pct == 0:
+                        task.status = 'todo'
+                    elif pct == 100:
+                        task.status = 'done'
+                    else:
+                        task.status = 'doing'
+                    task.save(update_fields=['progress_percent', 'status'])
+            except Exception:
+                pass
             # Recompute effort/combined with global weights for HTMX response
             weights = get_progress_weights()
             try:

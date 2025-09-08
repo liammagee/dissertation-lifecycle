@@ -1,5 +1,10 @@
 {% load vis %}
-<tr id="task-{{ task.pk }}" class="task-row" tabindex="0" data-task-id="{{ task.pk }}" data-milestone-id="{{ task.milestone.id }}" draggable="true">
+<tr id="task-{{ task.pk }}" class="task-row" tabindex="0" data-task-id="{{ task.pk }}" data-milestone-id="{{ task.milestone.id }}">
+  <td class="text-muted" style="width:28px">
+    <span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder" draggable="true" data-bs-toggle="tooltip" style="cursor:grab; user-select:none; display:inline-block">
+      <i class="bi bi-grip-vertical"></i>
+    </span>
+  </td>
   <td>{{ task.milestone.name }}</td>
   <td>
     <div class="task-grid{% if show_effort %} full{% endif %}">
@@ -117,12 +122,12 @@
         <span class="text-muted small me-2" style="width:2ch">0%</span>
         {% if task.gated_blocked %}
           <span class="tooltip-wrapper" data-bs-toggle="tooltip" title="Complete {{ task.gated_wait }} first">
-            <input type="range" min="0" max="100" step="10" list="progressTicks" data-status-id="status-{{ task.pk }}"
+          <input type="range" min="0" max="100" step="5" list="progressTicks" data-status-id="status-{{ task.pk }}"
                    value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
                    class="form-range flex-grow-1 progress-slider" disabled aria-disabled="true" style="pointer-events:none;" />
           </span>
         {% else %}
-          <input type="range" min="0" max="100" step="10" list="progressTicks" data-status-id="status-{{ task.pk }}"
+          <input type="range" min="0" max="100" step="5" list="progressTicks" data-status-id="status-{{ task.pk }}"
                  value="{% if task.status == 'done' %}100{% elif task.status == 'doing' %}50{% else %}0{% endif %}"
                  class="form-range flex-grow-1 progress-slider"
                  title="Progress: move to update status (0%=To Do, 1–99%=Doing, 100%=Done)" />

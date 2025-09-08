@@ -141,6 +141,8 @@ class Task(models.Model):
     priority = models.CharField(max_length=8, choices=PRIORITY_CHOICES, default='med')
     status = models.CharField(max_length=8, choices=STATUS_CHOICES, default='todo')
     completed_at = models.DateTimeField(null=True, blank=True)
+    # Optional fine-grained progress percent for UI slider (0–100)
+    progress_percent = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['milestone', 'order']
