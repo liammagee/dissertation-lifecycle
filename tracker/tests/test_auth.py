@@ -35,6 +35,11 @@ class PasswordChangeTests(TestCase):
 
 
 class SignupViewTests(TestCase):
+    def setUp(self) -> None:
+        # Logged-in user for dashboard/account menu tests
+        self.user = User.objects.create_user(username='bob', password='pass123#A', email='b@example.com')
+        self.client.login(username='bob', password='pass123#A')
+
     def test_signup_get_renders(self):
         r = self.client.get(reverse('signup'))
         self.assertEqual(r.status_code, 200)

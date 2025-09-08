@@ -51,7 +51,8 @@ def signup(request):
             if require_verify:
                 user.is_active = False
             user.save()
-            Profile.objects.create(user=user, role='student')
+            # A Profile is normally created via signals; use get_or_create to avoid race/dup.
+            Profile.objects.get_or_create(user=user, defaults={'role': 'student'})
             if require_verify:
                 # Send activation email
                 uid = urlsafe_base64_encode(force_bytes(user.pk))

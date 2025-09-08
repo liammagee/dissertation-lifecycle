@@ -24,7 +24,7 @@
             <label class="form-label" for="id_password1">Password</label>
             <div class="input-group">
               {{ form.password1|add_class:'form-control'|add_error_class:'is-invalid'|attr:'autocomplete:new-password'|attr:'inputmode:latin-password'|render }}
-              <button class="btn btn-outline-secondary" type="button" id="btn-suggest" title="Generate a strong password">Suggest</button>
+              <button class="btn btn-outline-secondary" type="button" id="btn-suggest" title="Generate a strong password" onclick="return window._signupSuggest && window._signupSuggest();">Suggest</button>
               <button class="btn btn-outline-secondary" type="button" id="btn-reveal" aria-pressed="false" title="Show/hide password"><i class="bi bi-eye"></i></button>
               <button class="btn btn-outline-secondary" type="button" id="btn-copy" title="Copy password"><i class="bi bi-clipboard"></i></button>
             </div>
@@ -134,6 +134,14 @@
       var p1 = document.getElementById('id_password1');
       var p2 = document.getElementById('id_password2');
       if (p1 && p2 && !p1.value && !p2.value){ suggest(); }
+      // Direct bindings to ensure clicks work in all environments
+      var b = document.getElementById('btn-suggest'); if (b) b.addEventListener('click', function(e){ e.preventDefault(); suggest(); });
+      var r = document.getElementById('btn-reveal'); if (r) r.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
+      var c = document.getElementById('btn-copy'); if (c) c.addEventListener('click', function(e){ e.preventDefault(); copyPw(); });
+      // Expose explicit helpers for test automation and fallback inline handlers
+      window._signupSuggest = function(){ suggest(); return false; };
+      window._signupReveal = function(){ toggle(); return false; };
+      window._signupCopy = function(){ copyPw(); return false; };
     });
   })();
   </script>

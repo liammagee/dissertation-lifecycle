@@ -184,7 +184,8 @@ Storage on Fly.io
 
 #### End‑to‑end (browser) tests
 
-- Install Playwright browsers (one‑time): `python -m playwright install` or `make e2e-setup`
+- Install dev deps (includes playwright): `pip install -r requirements-dev.txt`
+- Install Playwright browsers (one‑time): `python -m playwright install --with-deps` or `make e2e-setup`
 - Run E2E tests: `pytest -m e2e -q` or `make e2e`
 - Notes:
   - Uses `pytest-playwright` against Django’s `live_server` fixture.
