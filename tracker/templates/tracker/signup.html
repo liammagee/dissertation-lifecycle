@@ -25,8 +25,8 @@
             <div class="input-group">
               {{ form.password1|add_class:'form-control'|add_error_class:'is-invalid'|attr:'autocomplete:new-password'|attr:'inputmode:latin-password'|render }}
               <button class="btn btn-outline-secondary" type="button" id="btn-suggest" title="Generate a strong password" onclick="return window._signupSuggest && window._signupSuggest();">Suggest</button>
-              <button class="btn btn-outline-secondary" type="button" id="btn-reveal" aria-pressed="false" title="Show/hide password"><i class="bi bi-eye"></i></button>
-              <button class="btn btn-outline-secondary" type="button" id="btn-copy" title="Copy password"><i class="bi bi-clipboard"></i></button>
+              <button class="btn btn-outline-secondary" type="button" id="btn-reveal" aria-pressed="false" title="Show/hide password" onclick="return window._signupReveal && window._signupReveal();"><i class="bi bi-eye"></i></button>
+              <button class="btn btn-outline-secondary" type="button" id="btn-copy" title="Copy password" onclick="return window._signupCopy && window._signupCopy();"><i class="bi bi-clipboard"></i></button>
             </div>
             <div class="form-text">Minimum 10 characters. Include at least three of: lowercase, uppercase, digits, symbols.</div>
             <div class="progress mt-1" style="height:6px">
@@ -52,7 +52,6 @@
       </div>
     </div>
   </div>
-{% endblock %}
 <script>
   (function(){
     function score(p){
@@ -120,28 +119,31 @@
       if (!p1) return;
       navigator.clipboard && navigator.clipboard.writeText(p1.value).catch(function(){});
     }
+
+    // Expose helpers globally so inline handlers/tests can call them even if DOMContentLoaded already fired
+    window._signupSuggest = function(){ suggest(); return false; };
+    window._signupReveal = function(){ toggle(); return false; };
+    window._signupCopy = function(){ copyPw(); return false; };
     document.addEventListener('input', function(e){ if (e.target && e.target.id === 'id_password1') update(); });
-    // Robust event delegation so buttons always work
+    // Robust event delegation so buttons always work (capture phase)
     document.addEventListener('click', function(e){
-      var id = (e.target && (e.target.id || (e.target.closest && (e.target.closest('#btn-suggest') && 'btn-suggest') || (e.target.closest && e.target.closest('#btn-reveal') && 'btn-reveal') || (e.target.closest && e.target.closest('#btn-copy') && 'btn-copy')))) || '';
-      if (id === 'btn-suggest'){ e.preventDefault(); suggest(); }
-      if (id === 'btn-reveal'){ e.preventDefault(); toggle(); }
-      if (id === 'btn-copy'){ e.preventDefault(); copyPw(); }
-    });
+      var trg = e.target;
+      if (!trg) return;
+      var btn = trg.closest ? trg.closest('#btn-suggest, #btn-reveal, #btn-copy') : null;
+      if (!btn) return;
+      e.preventDefault();
+      if (btn.id === 'btn-suggest') return window._signupSuggest();
+      if (btn.id === 'btn-reveal') return window._signupReveal();
+      if (btn.id === 'btn-copy') return window._signupCopy();
+    }, true);
     window.addEventListener('DOMContentLoaded', function(){
       update();
-      // Pre-suggest a strong password if empty to encourage using it (browser should offer to save on success)
-      var p1 = document.getElementById('id_password1');
-      var p2 = document.getElementById('id_password2');
-      if (p1 && p2 && !p1.value && !p2.value){ suggest(); }
       // Direct bindings to ensure clicks work in all environments
       var b = document.getElementById('btn-suggest'); if (b) b.addEventListener('click', function(e){ e.preventDefault(); suggest(); });
       var r = document.getElementById('btn-reveal'); if (r) r.addEventListener('click', function(e){ e.preventDefault(); toggle(); });
       var c = document.getElementById('btn-copy'); if (c) c.addEventListener('click', function(e){ e.preventDefault(); copyPw(); });
-      // Expose explicit helpers for test automation and fallback inline handlers
-      window._signupSuggest = function(){ suggest(); return false; };
-      window._signupReveal = function(){ toggle(); return false; };
-      window._signupCopy = function(){ copyPw(); return false; };
+      // (helpers already exposed above, we still bind direct handlers for redundancy)
     });
   })();
   </script>
+{% endblock %}
